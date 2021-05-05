@@ -1,6 +1,7 @@
 package jde
 
 import jde.compiler.TxBuilder
+import jde.compiler.model.CompileResult
 import jde.parser.Parser
 import kiosk.ergo.KioskBox
 import kiosk.explorer.Explorer
@@ -9,7 +10,7 @@ import org.scalatest.{Matchers, WordSpec}
 import org.scalatestplus.mockito._
 
 class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
-  val explorer = mock[Explorer]
+  val explorer: Explorer = mock[Explorer]
   when(explorer.getHeight) thenReturn 12345
   val txBuilder = new TxBuilder(explorer)
 
@@ -26,7 +27,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
     val tokenId3 = "dbea46d988e86b1e60181b69936a3b927c3a4871aa6ed5258d3e4df155750bea"
     val tokenId4 = "5c674366216d127f7424bfcf1bf52310f9c34cd8d07013c804a95bb8ce9e4f82"
 
-    val fakeBox1 = KioskBox(
+    val fakeBox1: KioskBox = KioskBox(
       address = myAddress,
       value = 1000000000L,
       registers = Array(),
@@ -35,7 +36,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
       spentTxId = None
     )
 
-    val fakeBox2 = KioskBox(
+    val fakeBox2: KioskBox = KioskBox(
       address = myAddress,
       value = 1100000L,
       registers = Array(),
@@ -44,7 +45,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
       spentTxId = None
     )
 
-    val fakeBox3 = KioskBox(
+    val fakeBox3: KioskBox = KioskBox(
       address = myAddress,
       value = 2200000L,
       registers = Array(),
@@ -60,12 +61,12 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
 
     val code: String
 
-    def result = new compiler.TxBuilder(explorer).compile(Parser.parse(code))
+    lazy val result: CompileResult = new compiler.TxBuilder(explorer).compile(Parser.parse(code))
   }
 
   "Reader" should {
     "select first box when filtered by address" in new Mocks {
-      lazy val code = s"""{
+      lazy val code: String = s"""{
                          |  "constants":[
                          |    {
                          |      "name": "myAddress",
@@ -87,7 +88,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
     }
 
     "select second box when filtered by id" in new Mocks {
-      lazy val code = s"""{
+      lazy val code: String = s"""{
                          |  "constants":[
                          |    {
                          |      "name": "boxIds",
@@ -109,7 +110,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
     }
 
     "should throw exception when filtered by address and non-existent id" in new Mocks {
-      lazy val code = s"""{
+      lazy val code: String = s"""{
                          |  "constants":[
                          |    {
                          |      "name": "boxId",
@@ -139,7 +140,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
     }
 
     "should throw exception when filtered by non-existent address and boxId" in new Mocks {
-      lazy val code = s"""{
+      lazy val code: String = s"""{
                          |  "constants":[
                          |    {
                          |      "name": "boxId",
@@ -169,7 +170,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
     }
 
     "select no boxes when filtered by address and non-existent id with 'optional' option" in new Mocks {
-      lazy val code = s"""{
+      lazy val code: String = s"""{
                          |  "constants":[
                          |    {
                          |      "name": "boxIds",
@@ -202,7 +203,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
     }
 
     "select no boxes when filtered by non-existent address and id with 'optional' option" in new Mocks {
-      lazy val code = s"""{
+      lazy val code: String = s"""{
                          |  "constants":[
                          |    {
                          |      "name": "boxIds",
@@ -235,7 +236,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
     }
 
     "select all boxes when filtered by address with 'multi' option" in new Mocks {
-      lazy val code = s"""{
+      lazy val code: String = s"""{
                          |  "constants":[
                          |    {
                          |      "name": "myAddress",
@@ -260,7 +261,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
     }
 
     "select first and second boxes when filtered by multiple ids with 'multi' option" in new Mocks {
-      lazy val code = s"""{
+      lazy val code: String = s"""{
                          |  "constants":[
                          |    {
                          |      "name": "boxIds",
@@ -287,7 +288,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
     }
 
     "select second box when filtered by address and token" in new Mocks {
-      lazy val code = s"""{
+      lazy val code: String = s"""{
                         |  "constants":[
                         |    {
                         |      "name": "myAddress",
@@ -330,7 +331,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
     }
 
     "select second box when filtered by address and id" in new Mocks {
-      lazy val code = s"""{
+      lazy val code: String = s"""{
                        |  "constants":[
                        |    {
                        |      "name": "myAddress",
@@ -360,7 +361,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
     }
 
     "select third box when filtered by address and multiple ids" in new Mocks {
-      lazy val code = s"""{
+      lazy val code: String = s"""{
                        |  "constants":[
                        |    {
                        |      "name": "myAddress",
@@ -393,7 +394,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
     }
 
     "select third and second boxes when filtered by address and multiple ids with 'multi' option" in new Mocks {
-      lazy val code = s"""{
+      lazy val code: String = s"""{
                        |  "constants":[
                        |    {
                        |      "name": "myAddress",

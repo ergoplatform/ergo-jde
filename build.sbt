@@ -38,18 +38,22 @@ lazy val JDE = Project("jde", file("jde"))
   .settings(
     commonSettings,
     libraryDependencies ++= Seq(
-      "com.typesafe.play" %% "play-json" % "2.9.1"
+      "com.typesafe.play" %% "play-json" % "2.9.2"
     )
   )
 
+lazy val myMainClass = Some("cli.CLI")
+
 lazy val root = Project("ErgoJDE", file("."))
-  .aggregate(JDE, Kiosk)
   .dependsOn(JDE)
   .settings(
-    commonSettings,
-    assemblyMergeStrategy in assembly := {
-      case PathList("reference.conf")    => MergeStrategy.concat
-      case PathList("META-INF", xs @ _*) => MergeStrategy.discard
-      case x                             => MergeStrategy.first
+    Compile / mainClass := myMainClass,
+    assembly / mainClass := myMainClass,
+    assembly / assemblyJarName := "jde.jar",
+    assembly / assemblyMergeStrategy := {
+      case PathList("reference.conf")           => MergeStrategy.concat
+      case PathList("META-INF", xs @ _*)        => MergeStrategy.discard
+      case x if x.endsWith("module-info.class") => MergeStrategy.discard
+      case x                                    => MergeStrategy.first
     }
   )
