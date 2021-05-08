@@ -27,8 +27,14 @@ trait Declaration {
 
   def updateType(newType: DataType.Type) = `type` = newType
 
+  def getTargets(implicit dictionary: Dictionary): Seq[KioskType[_]] =
+    pointerNames.flatMap(pointerName => dictionary.getDeclaration(pointerName).getValue.seq)
+
   def getValue(implicit dictionary: Dictionary): Multiple[KioskType[_]] =
-    if (isOnChain) dictionary.getOnChainValue(onChainVariable.get.name) else dictionary.getDeclaration(pointers.head.name).getValue
+    if (isOnChain)
+      dictionary.getOnChainValue(onChainVariable.get.name)
+    else
+      dictionary.getDeclaration(pointers.head.name).getValue
 
   override def toString = s"${maybeTargetId.getOrElse("unnamed")}: ${`type`}"
 }

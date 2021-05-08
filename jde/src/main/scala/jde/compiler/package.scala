@@ -1,15 +1,12 @@
 package jde
 
 import jde.compiler.model.{Constant, Multiple}
-import kiosk.encoding.ScalaErgoConverters.{getAddressFromErgoTree => tree2addr, getStringFromAddress => addr2Str}
-import kiosk.ergo.{DataType, KioskErgoTree, KioskType}
+import kiosk.ergo.{DataType, KioskType}
 
 import java.util.UUID
 import scala.util.Try
 
 package object compiler {
-
-  def tree2str(ergoTree: KioskErgoTree): String = addr2Str(tree2addr(ergoTree.value))
 
   def height(actualHeight: Int) = Constant("HEIGHT", DataType.Int, Some(actualHeight.toString), values = None)
 
@@ -25,6 +22,8 @@ package object compiler {
   }
 
   def to[B](kioskTypes: Multiple[KioskType[_]]): Multiple[B] = kioskTypes.map(_.asInstanceOf[B])
+
+  def to[B](kioskTypes: Seq[KioskType[_]]): Seq[B] = kioskTypes.map(_.asInstanceOf[B])
 
   type T = (Option[_], String)
 

@@ -1,10 +1,10 @@
 package jde.compiler
 
-import kiosk.explorer.Explorer
 import jde.compiler.model._
 import jde.parser.Parser._
 import kiosk.ergo
-import kiosk.ergo.{Amount, ID, Tokens, usingSource}
+import kiosk.ergo.{Amount, ID, usingSource}
+import kiosk.explorer.Explorer
 import play.api.libs.json.Json
 
 import scala.io.BufferedSource

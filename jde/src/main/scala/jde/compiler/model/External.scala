@@ -80,8 +80,7 @@ case class Address(name: Option[String], value: Option[String]) extends Declarat
   override lazy val canPointToOnChain: Boolean = true
   atLeastOne(this)("name", "value")(name, value)
   override def getValue(implicit dictionary: Dictionary): Multiple[KioskErgoTree] = to[KioskErgoTree](super.getValue)
-  def getTargets(implicit dictionary: Dictionary): Seq[KioskErgoTree] =
-    pointerNames.flatMap(pointerName => to[KioskErgoTree](dictionary.getDeclaration(pointerName).getValue).seq)
+  override def getTargets(implicit dictionary: Dictionary): Seq[KioskErgoTree] = super.getTargets.map(_.asInstanceOf[KioskErgoTree])
 }
 
 case class Register(name: Option[String], value: Option[String], num: Num, var `type`: Type) extends Declaration {
@@ -99,6 +98,7 @@ case class Id(name: Option[String], value: Option[String]) extends Declaration {
   override lazy val pointerTypes: Seq[Type] = pointerNames.map(_ => DataType.CollByte)
   override lazy val isLazy = false
   override lazy val canPointToOnChain: Boolean = true
+  override def getTargets(implicit dictionary: Dictionary): Seq[KioskCollByte] = to[KioskCollByte](super.getTargets)
   override def getValue(implicit dictionary: Dictionary): Multiple[KioskCollByte] = {
     val kioskCollBytes = to[KioskCollByte](super.getValue)
     kioskCollBytes.foreach(kioskCollByte => {
@@ -118,8 +118,7 @@ case class Long(name: Option[String], value: Option[String], filter: Option[Filt
   override lazy val isLazy = false
   override lazy val canPointToOnChain: Boolean = true
   lazy val filterOp: Op = filter.getOrElse(FilterOp.Eq)
-  def getTargets(implicit dictionary: Dictionary): Seq[KioskLong] =
-    value.fold(Seq[KioskLong]())(pointer => to[KioskLong](dictionary.getDeclaration(pointer).getValue).seq)
+  override def getTargets(implicit dictionary: Dictionary): Seq[KioskLong] = to[KioskLong](super.getTargets)
   override def getValue(implicit dictionary: Dictionary): Multiple[KioskLong] = to[KioskLong](super.getValue)
   if (filter.nonEmpty && value.isEmpty) throw new Exception(s"Value cannot be empty if filter is defined")
   if (filter.contains(FilterOp.Eq)) throw new Exception(s"Filter cannot be Eq")

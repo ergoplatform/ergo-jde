@@ -1,7 +1,7 @@
 package jde.compiler
 
 import kiosk.ergo
-import kiosk.ergo.{DataType, KioskBox, KioskType}
+import kiosk.ergo.{DataType, KioskBox, KioskType, tree2str}
 import jde.compiler.model.{Multiple, Output, Program, RegNum}
 
 class Builder(implicit dictionary: Dictionary) {

@@ -1,6 +1,5 @@
 package jde.compiler.model
 
-import jde.compiler.tree2str
 import kiosk.ergo._
 import kiosk.encoding.ScalaErgoConverters
 import kiosk.ergo.{KioskBox, KioskCollByte, KioskErgoTree, KioskLong, KioskType}

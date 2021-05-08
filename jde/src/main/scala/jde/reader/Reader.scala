@@ -13,8 +13,11 @@ class Reader(explorer: Explorer)(implicit dictionary: Dictionary) {
     val boxesById: Option[Seq[OnChainBox]] = for {
       id <- input.id
       _ <- id.value
-    } yield Try(id.getValue.seq.map(boxId => OnChainBox.fromKioskBox(explorer.getBoxById(boxId.stringValue)))).getOrElse(Nil)
-
+    } yield {
+      id.getTargets.map(boxId => Try(OnChainBox.fromKioskBox(explorer.getBoxById(boxId.stringValue))).toOption).collect {
+        case Some(onChainBox) => onChainBox
+      }
+    }
     // if box by id is defined then use those as the starting point to find boxes by address, otherwise use the set of all boxes
     def filterByAddress(address: String): Seq[OnChainBox] = {
       boxesById.map(_.filter(_.address == address)).getOrElse(explorer.getUnspentBoxes(address).map(OnChainBox.fromKioskBox))
@@ -23,7 +26,9 @@ class Reader(explorer: Explorer)(implicit dictionary: Dictionary) {
     val boxesByAddress: Option[Seq[OnChainBox]] = for {
       address <- input.address
       _ <- address.value
-    } yield address.getTargets.map(tree2str).flatMap(filterByAddress)
+    } yield {
+      address.getTargets.map(tree2str).flatMap(filterByAddress)
+    }
 
     val matchedBoxes: Seq[OnChainBox] = boxesByAddress.getOrElse(boxesById.getOrElse(Nil))
 
@@ -52,7 +57,7 @@ class Reader(explorer: Explorer)(implicit dictionary: Dictionary) {
       onChainBoxes.filter(onChainBox => onChainBox.registers.size > index && DataType.isValid(onChainBox.registers(index), register.`type`))
 
     register.value.fold(filteredByType) { _ =>
-      val expected: Multiple[KioskType[_]] = register.getValue
+      val expected = register.getTargets
       filteredByType.filter { onChainBox =>
         val actual: KioskType[_] = onChainBox.registers(index)
         expected.exists(_.hex == actual.hex)
@@ -81,7 +86,7 @@ class Reader(explorer: Explorer)(implicit dictionary: Dictionary) {
     val amount: Long = token.amount.getOrElse(dummyLong)
     (token.index, tokenId.value) match {
       case (Some(index), Some(_)) =>
-        val expectedIds: Seq[String] = tokenId.getValue.map(_.stringValue).seq
+        val expectedIds: Seq[String] = tokenId.getTargets.map(_.stringValue)
         tokenBoxes
           .filter(tokenBox =>
             expectedIds.contains(tokenBox.onChainBox.stringTokenIds(index)) && matches(tokenBox.onChainBox.tokenAmounts(index), amount)
@@ -92,8 +97,8 @@ class Reader(explorer: Explorer)(implicit dictionary: Dictionary) {
           .filter(box => box.onChainBox.tokenIds.size > index && matches(box.onChainBox.tokenAmounts(index), amount))
           .map(box => box.copy(foundIds = box.foundIds ++ box.onChainBox.stringTokenIds.take(index + 1)))
       case (None, Some(_)) =>
-        val expectedIds: Seq[String] = tokenId.getValue.map(_.stringValue).seq
-        def findToken(tokenBox: TokenBox) = {
+        val expectedIds: Seq[String] = tokenId.getTargets.map(_.stringValue)
+        def findToken(tokenBox: TokenBox): (TokenBox, Option[Int]) = {
           tokenBox -> tokenBox.onChainBox.stringTokenIds.indices.find(index =>
             expectedIds.contains(tokenBox.onChainBox.stringTokenIds(index)) && matches(tokenBox.onChainBox.tokenAmounts(index), amount)
           )

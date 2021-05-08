@@ -139,3 +139,5 @@ for Sigma-USD, we can have post-conditions to check that the reserve ratio is be
 Each of the above components are optional. If the outputs are not specified then the transaction template won't be created.
 
 The folder `/sample-scripts` contains several sample JDE programs. 
+
+See [this document](/syntax.md) for the syntax of JDE programs.
