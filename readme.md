@@ -37,7 +37,7 @@ JDE can be used for any of the following tasks:
 #### Transaction Template   
 A transaction template is like an unsigned transaction with the difference that while an unsigned transaction is *complete* in the sense that it contains *all* the inputs, outputs and data-inputs of the final transaction, a template contains only a subset of this data. In particular, it contains:
    
-   1. The boxIds of inputs to be used.z`
+   1. The boxIds of inputs to be used.
        
    2. The boxIds of data-inputs to be used.
        
