@@ -1,6 +1,6 @@
 package jde
 
-import jde.compiler.TxBuilder
+import jde.compiler.Compiler
 import jde.compiler.model.CompileResult
 import jde.parser.Parser
 import kiosk.ergo.KioskBox
@@ -12,7 +12,7 @@ import org.scalatestplus.mockito._
 class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
   val explorer: Explorer = mock[Explorer]
   when(explorer.getHeight) thenReturn 12345
-  val txBuilder = new TxBuilder(explorer)
+  val txBuilder = new Compiler(explorer)
 
   def someSeq[T](seq: T*): Option[Seq[T]] = Some(seq)
 
@@ -61,7 +61,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
 
     val code: String
 
-    lazy val result: CompileResult = new compiler.TxBuilder(explorer).compile(Parser.parse(code))
+    lazy val result: CompileResult = new compiler.Compiler(explorer).compile(Parser.parse(code))
   }
 
   "Reader" should {

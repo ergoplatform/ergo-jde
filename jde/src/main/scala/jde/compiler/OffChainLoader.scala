@@ -5,7 +5,7 @@ import jde.compiler.model._
 import java.util.UUID
 
 class OffChainLoader(implicit dictionary: Dictionary) {
-  def load(p: Protocol): Unit = {
+  def load(p: Program): Unit = {
     (optSeq(p.constants) ++ optSeq(p.unaryOps) ++ optSeq(p.binaryOps) ++ optSeq(
       p.branches
     ) ++ optSeq(p.postConditions)).foreach(dictionary.addDeclaration)

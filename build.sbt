@@ -42,14 +42,16 @@ lazy val JDE = Project("jde", file("jde"))
     )
   )
 
-lazy val myMainClass = Some("cli.CLI")
+lazy val myMainClass = "cli.CLI"
+lazy val myJarName = "jde.jar"
 
 lazy val root = Project("ErgoJDE", file("."))
   .dependsOn(JDE)
   .settings(
-    Compile / mainClass := myMainClass,
-    assembly / mainClass := myMainClass,
-    assembly / assemblyJarName := "jde.jar",
+    libraryDependencies += "javax.servlet" % "servlet-api" % "2.5" % "provided", // for servlet
+    Compile / mainClass := Some(myMainClass),
+    assembly / mainClass := Some(myMainClass),
+    assembly / assemblyJarName := myJarName,
     assembly / assemblyMergeStrategy := {
       case PathList("reference.conf")           => MergeStrategy.concat
       case PathList("META-INF", xs @ _*)        => MergeStrategy.discard
@@ -57,3 +59,5 @@ lazy val root = Project("ErgoJDE", file("."))
       case x                                    => MergeStrategy.first
     }
   )
+
+enablePlugins(JettyPlugin)

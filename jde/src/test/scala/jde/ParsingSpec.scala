@@ -6,16 +6,16 @@ import kiosk.ergo.{DataType, KioskErgoTree, KioskGroupElement}
 import jde.compiler.model.BinaryOperator._
 import jde.compiler.model.{BinaryOp, Constant, Multiple}
 import jde.compiler.{Dictionary, optSeq}
-import jde.helpers.{TraitDummyProtocol, TraitTimestamp, TraitTokenFilter}
+import jde.helpers.{TraitDummyProgram, TraitTimestamp, TraitTokenFilter}
 import jde.parser.Parser
 import org.scalatest.{Matchers, WordSpec}
 import org.scalatestplus.mockito._
 import play.api.libs.json.JsValue
 
-class ParsingSpec extends WordSpec with MockitoSugar with Matchers with TraitTokenFilter with TraitTimestamp with TraitDummyProtocol {
-  "Protocol parser" should {
+class ParsingSpec extends WordSpec with MockitoSugar with Matchers with TraitTokenFilter with TraitTimestamp with TraitDummyProgram {
+  "Program parser" should {
     "parse constants from token-filter.json correctly" in {
-      val constants = tokenFilterProtocol.constants.get
+      val constants = tokenFilterProgram.constants.get
       constants(0) shouldEqual Constant(
         name = "506dfb0a34d44f2baef77d99f9da03b1f122bdc4c7c31791a0c706e23f1207e7",
         `type` = DataType.CollByte,
@@ -45,12 +45,12 @@ class ParsingSpec extends WordSpec with MockitoSugar with Matchers with TraitTok
     }
 
     "parse operations from token-filter.json correctly" in {
-      val binaryOps = tokenFilterProtocol.binaryOps.get
+      val binaryOps = tokenFilterProgram.binaryOps.get
       binaryOps(0) shouldEqual BinaryOp(name = "myTokenAmount+1234", first = "myTokenAmount", Add, second = "1234")
     }
 
     "parse constants from timestamp.json correctly" in {
-      val constants = timestampProtocol.constants.get
+      val constants = timestampProgram.constants.get
       constants(0) shouldEqual Constant(
         name = "myBoxId",
         `type` = DataType.CollByte,
@@ -78,23 +78,23 @@ class ParsingSpec extends WordSpec with MockitoSugar with Matchers with TraitTok
     }
 
     "parse operations from timestamp.json correctly" in {
-      val binaryOps = timestampProtocol.binaryOps.get
+      val binaryOps = timestampProgram.binaryOps.get
       binaryOps(0) shouldEqual BinaryOp(name = "balanceTokenAmount", first = "inputTokenAmount", Sub, second = "one")
     }
 
     "parse and un-parse correctly" in {
-      val protocolToJson: JsValue = Parser.unparse(dummyProtocol) // convert to json
-      val protocolToJsonToProtocol = Parser.parse(protocolToJson.toString) // convert back to protocol
-      protocolToJsonToProtocol shouldBe dummyProtocol
+      val programToJson: JsValue = Parser.unparse(dummyProgram) // convert to json
+      val programToJsonToProgram = Parser.parse(programToJson.toString) // convert back to program
+      programToJsonToProgram shouldBe dummyProgram
     }
 
-    "parse protocol from dummy-protocol.json correctly" in {
-      dummyProtocolFromJson shouldBe dummyProtocol
+    "parse program from dummy-program.json correctly" in {
+      dummyProgramFromJson shouldBe dummyProgram
     }
 
-    "parse constants from dummy-protocol.json correctly" in {
+    "parse constants from dummy-program.json correctly" in {
       implicit val dictionary = new Dictionary(12345)
-      val constants = optSeq(dummyProtocolFromJson.constants)
+      val constants = optSeq(dummyProgramFromJson.constants)
       constants(0) shouldEqual Constant("myLong1", DataType.Long, Some("1234"), None)
       constants(1) shouldEqual Constant(
         "myCollByte",

@@ -1,7 +1,7 @@
 package jde
 
 import jde.compiler.model.MatchingOptions.Strict
-import jde.compiler.{TxBuilder, optSeq}
+import jde.compiler.{Compiler, optSeq}
 import jde.helpers.TraitTimestamp
 import kiosk.ergo.{KioskBox, KioskInt}
 import kiosk.explorer.Explorer
@@ -13,7 +13,7 @@ import play.api.libs.json.JsResultException
 class TimestampSpec extends WordSpec with MockitoSugar with Matchers with TraitTimestamp {
   val explorer = mock[Explorer]
   when(explorer.getHeight) thenReturn 12345
-  val txBuilder = new TxBuilder(explorer)
+  val txBuilder = new Compiler(explorer)
 
   def someSeq[T](seq: T*): Option[Seq[T]] = Some(seq)
 
@@ -71,8 +71,8 @@ class TimestampSpec extends WordSpec with MockitoSugar with Matchers with TraitT
 
   "Compilation" should {
     "select matched boxes" in new TimestampMocks {
-      timestampProtocol.inputs.size shouldBe 1
-      optSeq(timestampProtocol.inputs)(0).options shouldBe Some(Set(Strict))
+      timestampProgram.inputs.size shouldBe 1
+      optSeq(timestampProgram.inputs)(0).options shouldBe Some(Set(Strict))
 
       when(explorer.getBoxById("506dfb0a34d44f2baef77d99f9da03b1f122bdc4c7c31791a0c706e23f1207e7")) thenReturn fakeDataInputBox
       when(
@@ -81,7 +81,7 @@ class TimestampSpec extends WordSpec with MockitoSugar with Matchers with TraitT
         )
       ) thenReturn Seq(fakeEmissionBoxLessTokens, fakeEmissionBoxExtraTokens, fakeEmissionBoxExactTokens)
 
-      val result = new TxBuilder(explorer).compile(timestampProtocol)
+      val result = new Compiler(explorer).compile(timestampProgram)
 
       result.dataInputBoxIds shouldBe Seq("506dfb0a34d44f2baef77d99f9da03b1f122bdc4c7c31791a0c706e23f1207e7")
       result.inputBoxIds shouldBe Seq("43b0c3add1fde20244a3467798a777684f9234d1f56f31ad01a297c86c6d40c7")
@@ -104,8 +104,8 @@ class TimestampSpec extends WordSpec with MockitoSugar with Matchers with TraitT
     }
 
     "reject with no matched inputs" in new TimestampMocks {
-      timestampProtocol.inputs.size shouldBe 1
-      optSeq(timestampProtocol.inputs)(0).options shouldBe Some(Set(Strict))
+      timestampProgram.inputs.size shouldBe 1
+      optSeq(timestampProgram.inputs)(0).options shouldBe Some(Set(Strict))
 
       when(explorer.getBoxById("506dfb0a34d44f2baef77d99f9da03b1f122bdc4c7c31791a0c706e23f1207e7")) thenReturn fakeDataInputBox
       when(
@@ -114,16 +114,16 @@ class TimestampSpec extends WordSpec with MockitoSugar with Matchers with TraitT
         )
       ) thenReturn Seq(fakeEmissionBoxLessTokens, fakeEmissionBoxExtraTokens)
 
-      the[Exception] thrownBy txBuilder.compile(timestampProtocol) should have message "No box matched for input at index 0"
+      the[Exception] thrownBy txBuilder.compile(timestampProgram) should have message "No box matched for input at index 0"
     }
 
     "reject with no matched data inputs" in new TimestampMocks {
-      timestampProtocol.inputs.size shouldBe 1
-      optSeq(timestampProtocol.inputs)(0).options shouldBe Some(Set(Strict))
+      timestampProgram.inputs.size shouldBe 1
+      optSeq(timestampProgram.inputs)(0).options shouldBe Some(Set(Strict))
 
       when(explorer.getBoxById("506dfb0a34d44f2baef77d99f9da03b1f122bdc4c7c31791a0c706e23f1207e7")) thenThrow new JsResultException(Nil)
 
-      the[Exception] thrownBy txBuilder.compile(timestampProtocol) should have message "No box matched for data-input at index 0"
+      the[Exception] thrownBy txBuilder.compile(timestampProgram) should have message "No box matched for data-input at index 0"
     }
   }
 }

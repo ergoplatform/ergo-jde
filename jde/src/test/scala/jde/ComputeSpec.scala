@@ -1,8 +1,8 @@
 package jde
 
 import jde.compiler.model.ReturnedValue
-import jde.compiler.{TxBuilder, optSeq}
-import jde.helpers.{TraitDummyProtocol, TraitTokenFilter}
+import jde.compiler.{Compiler, optSeq}
+import jde.helpers.{TraitDummyProgram, TraitTokenFilter}
 import jde.parser.Parser
 import kiosk.encoding.ScalaErgoConverters
 import kiosk.ergo.{KioskBox, KioskCollByte, KioskErgoTree, KioskGroupElement, KioskInt, KioskLong, KioskType, StringToBetterString}
@@ -11,11 +11,11 @@ import org.mockito.Mockito.when
 import org.scalatest.{Matchers, WordSpec}
 import org.scalatestplus.mockito.MockitoSugar
 
-class ComputeSpec extends WordSpec with MockitoSugar with Matchers with TraitDummyProtocol {
+class ComputeSpec extends WordSpec with MockitoSugar with Matchers with TraitDummyProgram {
   val explorer = mock[Explorer]
   when(explorer.getHeight) thenReturn 12345
-  val txBuilder = new TxBuilder(explorer)
-  trait DummyProtocolMocks {
+  val txBuilder = new Compiler(explorer)
+  trait DummyProgramMocks {
     val fakeBox1 = KioskBox(
       address =
         "2z93aPPTpVrZJHkQN54V7PatEfg3Ac1zKesFxUz8TGGZwPT4Rr5q6tBwsjEjounQU4KNZVqbFAUsCNipEKZmMdx2WTqFEyUURcZCW2CrSqKJ8YNtSVDGm7eHcrbPki9VRsyGpnpEQvirpz6GKZgghcTRDwyp1XtuXoG7XWPC4bT1U53LhiM3exE2iUDgDkme2e5hx9dMyBUi9TSNLNY1oPy2MjJ5seYmGuXCTRPLqrsi",
@@ -54,15 +54,15 @@ class ComputeSpec extends WordSpec with MockitoSugar with Matchers with TraitDum
     )
   }
 
-  "Compilation for dummy-protocol.json" should {
-    "compute result correctly" in new DummyProtocolMocks {
-      optSeq(dummyProtocolFromJson.dataInputs).size shouldBe 2
-      dummyProtocolFromJson.inputs.size shouldBe 1
+  "Compilation for dummy-program.json" should {
+    "compute result correctly" in new DummyProgramMocks {
+      optSeq(dummyProgramFromJson.dataInputs).size shouldBe 2
+      dummyProgramFromJson.inputs.size shouldBe 1
 
       when(explorer.getBoxById("506dfb0a34d44f2baef77d99f9da03b1f122bdc4c7c31791a0c706e23f1207e7")) thenReturn fakeBox1
       when(explorer.getUnspentBoxes("9f5ZKbECVTm25JTRQHDHGM5ehC8tUw5g1fCBQ4aaE792rWBFrjK")) thenReturn Seq(fakeBox2, fakeBox3)
-      txBuilder.compile(dummyProtocolFromJson)
-      val returnedValues: Seq[ReturnedValue] = txBuilder.compile(dummyProtocolFromJson).returned
+      txBuilder.compile(dummyProgramFromJson)
+      val returnedValues: Seq[ReturnedValue] = txBuilder.compile(dummyProgramFromJson).returned
       val result = returnedValues.map(returnedValue => returnedValue.name -> returnedValue.values).toMap
 
       def toCollByte(string: String) = KioskCollByte(string.decodeHex).hex
@@ -169,15 +169,15 @@ class ComputeSpec extends WordSpec with MockitoSugar with Matchers with TraitDum
 
       goodTestVectors.foreach {
         case (address, groupElement) =>
-          val protocolFromJson = Parser.parse(script(address, groupElement))
-          noException should be thrownBy txBuilder.compile(protocolFromJson)
+          val programFromJson = Parser.parse(script(address, groupElement))
+          noException should be thrownBy txBuilder.compile(programFromJson)
       }
 
       badTestVectors.foreach {
         case (address, (goodGroupElement, badGroupElement)) =>
-          val protocolFromJson = Parser.parse(script(address, badGroupElement))
+          val programFromJson = Parser.parse(script(address, badGroupElement))
           the[Exception] thrownBy txBuilder.compile(
-            protocolFromJson
+            programFromJson
           ) should have message s"""Failed post-condition: groupElementFromAddress: ($goodGroupElement) Eq groupElement ($badGroupElement)"""
       }
 

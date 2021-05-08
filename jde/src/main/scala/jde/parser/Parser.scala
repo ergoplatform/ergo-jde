@@ -94,8 +94,8 @@ object Parser {
   private implicit val readsPostCondition = checkedReads(Json.reads[PostCondition])
   private implicit val writesPostCondition = Json.writes[PostCondition]
 
-  private implicit val readsProtocol = checkedReads(Json.reads[Protocol])
-  private implicit val writesProtocol = Json.writes[Protocol]
+  private implicit val readsProgram = checkedReads(Json.reads[Program])
+  private implicit val writesProgram = Json.writes[Program]
 
   private implicit val writeKioskType = new Writes[KioskType[_]] {
     override def writes(o: KioskType[_]): JsValue = JsString(o.hex)
@@ -110,6 +110,6 @@ object Parser {
     }
   }
   implicit val writesCompileResult = Json.writes[CompileResult]
-  def parse(string: String) = Json.parse(string).as[Protocol]
-  def unparse(protocol: Protocol) = Json.toJson(protocol)
+  def parse(string: String) = Json.parse(string).as[Program]
+  def unparse(program: Program) = Json.toJson(program)
 }

@@ -2,7 +2,7 @@ package jde
 
 import jde.compiler.model.MatchingOptions.{Optional, Strict}
 import jde.compiler.model.{FilterOp, MatchingOptions, Output}
-import jde.compiler.{TxBuilder, model, optSeq}
+import jde.compiler.{Compiler, model, optSeq}
 import jde.helpers.TraitTokenFilter
 import kiosk.ergo.KioskBox
 import kiosk.explorer.Explorer
@@ -13,7 +13,7 @@ import org.scalatestplus.mockito._
 class TokenSpec extends WordSpec with MockitoSugar with Matchers with TraitTokenFilter {
   val explorer = mock[Explorer]
   when(explorer.getHeight) thenReturn 12345
-  val txBuilder = new TxBuilder(explorer)
+  val txBuilder = new Compiler(explorer)
 
   def someSeq[T](seq: T*): Option[Seq[T]] = Some(seq)
 
@@ -115,12 +115,12 @@ class TokenSpec extends WordSpec with MockitoSugar with Matchers with TraitToken
 
   "Compilation for token-filter.json" should {
     "select matched boxes" in new TokenMocks {
-      optSeq(tokenFilterProtocol.inputs).size shouldBe 2
-      optSeq(tokenFilterProtocol.inputs)(0).options shouldBe Some(Set(Strict))
-      optSeq(tokenFilterProtocol.inputs)(1).options shouldBe Some(Set(Strict))
+      optSeq(tokenFilterProgram.inputs).size shouldBe 2
+      optSeq(tokenFilterProgram.inputs)(0).options shouldBe Some(Set(Strict))
+      optSeq(tokenFilterProgram.inputs)(1).options shouldBe Some(Set(Strict))
       when(explorer.getBoxById("dbea46d988e86b1e60181b69936a3b927c3a4871aa6ed5258d3e4df155750bea")) thenReturn fakeBox0ExactTokens
       when(explorer.getUnspentBoxes("9f5ZKbECVTm25JTRQHDHGM5ehC8tUw5g1fCBQ4aaE792rWBFrjK")) thenReturn Seq(fakeBox1ExactTokens, fakeBox2LessTokens)
-      val result = new compiler.TxBuilder(explorer).compile(tokenFilterProtocol)
+      val result = new compiler.Compiler(explorer).compile(tokenFilterProgram)
       result.inputBoxIds shouldBe Seq(
         "dbea46d988e86b1e60181b69936a3b927c3a4871aa6ed5258d3e4df155750bea",
         "af0e35e1cf5a8890d70cef498c996dcd3e7658cfadd37695425032d4f8327d8a"
@@ -130,7 +130,7 @@ class TokenSpec extends WordSpec with MockitoSugar with Matchers with TraitToken
     "select matched boxes in any order" in new TokenMocks {
       when(explorer.getBoxById("dbea46d988e86b1e60181b69936a3b927c3a4871aa6ed5258d3e4df155750bea")) thenReturn fakeBox0ExactTokens
       when(explorer.getUnspentBoxes("9f5ZKbECVTm25JTRQHDHGM5ehC8tUw5g1fCBQ4aaE792rWBFrjK")) thenReturn Seq(fakeBox2LessTokens, fakeBox1ExactTokens)
-      val result = new compiler.TxBuilder(explorer).compile(tokenFilterProtocol)
+      val result = new compiler.Compiler(explorer).compile(tokenFilterProgram)
       result.inputBoxIds shouldBe Seq(
         "dbea46d988e86b1e60181b69936a3b927c3a4871aa6ed5258d3e4df155750bea",
         "af0e35e1cf5a8890d70cef498c996dcd3e7658cfadd37695425032d4f8327d8a"
@@ -143,11 +143,9 @@ class TokenSpec extends WordSpec with MockitoSugar with Matchers with TraitToken
         fakeBox2LessTokens,
         fakeBox1ExactTokensWrongAmount
       )
-      the[Exception] thrownBy new compiler.TxBuilder(explorer)
+      the[Exception] thrownBy new compiler.Compiler(explorer)
         .compile(
-          tokenFilterProtocol.copy(inputs =
-            someSeq(optSeq(tokenFilterProtocol.inputs)(0), optSeq(tokenFilterProtocol.inputs)(1).copy(options = None))
-          )
+          tokenFilterProgram.copy(inputs = someSeq(optSeq(tokenFilterProgram.inputs)(0), optSeq(tokenFilterProgram.inputs)(1).copy(options = None)))
         ) should have message "No box matched for input at index 1"
     }
 
@@ -157,10 +155,10 @@ class TokenSpec extends WordSpec with MockitoSugar with Matchers with TraitToken
         fakeBox2LessTokens,
         fakeBox1ExactTokensWrongAmount
       )
-      val result = new compiler.TxBuilder(explorer)
+      val result = new compiler.Compiler(explorer)
         .compile(
-          tokenFilterProtocol.copy(inputs =
-            someSeq(optSeq(tokenFilterProtocol.inputs)(0), optSeq(tokenFilterProtocol.inputs)(1).copy(options = Some(Set(MatchingOptions.Optional))))
+          tokenFilterProgram.copy(inputs =
+            someSeq(optSeq(tokenFilterProgram.inputs)(0), optSeq(tokenFilterProgram.inputs)(1).copy(options = Some(Set(MatchingOptions.Optional))))
           )
         )
       result.inputBoxIds shouldBe Seq("dbea46d988e86b1e60181b69936a3b927c3a4871aa6ed5258d3e4df155750bea")
@@ -172,12 +170,12 @@ class TokenSpec extends WordSpec with MockitoSugar with Matchers with TraitToken
         fakeBox2LessTokens,
         fakeBox1ExactTokensWrongAmount
       )
-      the[Exception] thrownBy new compiler.TxBuilder(explorer)
+      the[Exception] thrownBy new compiler.Compiler(explorer)
         .compile(
-          tokenFilterProtocol.copy(
+          tokenFilterProgram.copy(
             inputs = someSeq(
-              optSeq(tokenFilterProtocol.inputs)(0),
-              optSeq(tokenFilterProtocol.inputs)(1).copy(options = Some(Set(MatchingOptions.Optional)))
+              optSeq(tokenFilterProgram.inputs)(0),
+              optSeq(tokenFilterProgram.inputs)(1).copy(options = Some(Set(MatchingOptions.Optional)))
             ),
             outputs = Some(
               Seq(
@@ -200,12 +198,12 @@ class TokenSpec extends WordSpec with MockitoSugar with Matchers with TraitToken
         fakeBox2LessTokens,
         fakeBox1ExactTokensWrongAmount
       )
-      val result = new compiler.TxBuilder(explorer)
+      val result = new compiler.Compiler(explorer)
         .compile(
-          tokenFilterProtocol.copy(
+          tokenFilterProgram.copy(
             inputs = someSeq(
-              optSeq(tokenFilterProtocol.inputs)(0),
-              optSeq(tokenFilterProtocol.inputs)(1).copy(options = Some(Set(MatchingOptions.Optional)))
+              optSeq(tokenFilterProgram.inputs)(0),
+              optSeq(tokenFilterProgram.inputs)(1).copy(options = Some(Set(MatchingOptions.Optional)))
             ),
             outputs = someSeq(
               Output(
@@ -223,9 +221,9 @@ class TokenSpec extends WordSpec with MockitoSugar with Matchers with TraitToken
     }
 
     "reject if output contains the Strict option" in new TokenMocks {
-      the[Exception] thrownBy new compiler.TxBuilder(explorer)
+      the[Exception] thrownBy new compiler.Compiler(explorer)
         .compile(
-          tokenFilterProtocol.copy(
+          tokenFilterProgram.copy(
             outputs = someSeq(
               Output(
                 address = model.Address(name = None, value = Some("9f5ZKbECVTm25JTRQHDHGM5ehC8tUw5g1fCBQ4aaE792rWBFrjK")),
@@ -244,17 +242,15 @@ class TokenSpec extends WordSpec with MockitoSugar with Matchers with TraitToken
     "reject boxes with extra tokens and Strict for input 0" in new TokenMocks {
       when(explorer.getBoxById("dbea46d988e86b1e60181b69936a3b927c3a4871aa6ed5258d3e4df155750bea")) thenReturn fakeBox0ExtraTokens
       when(explorer.getUnspentBoxes("9f5ZKbECVTm25JTRQHDHGM5ehC8tUw5g1fCBQ4aaE792rWBFrjK")) thenReturn Seq(fakeBox1ExactTokens, fakeBox2LessTokens)
-      the[Exception] thrownBy new compiler.TxBuilder(explorer).compile(tokenFilterProtocol) should have message "No box matched for input at index 0"
+      the[Exception] thrownBy new compiler.Compiler(explorer).compile(tokenFilterProgram) should have message "No box matched for input at index 0"
     }
 
     "select boxes with extra tokens and no Strict for input 0" in new TokenMocks {
       when(explorer.getBoxById("dbea46d988e86b1e60181b69936a3b927c3a4871aa6ed5258d3e4df155750bea")) thenReturn fakeBox0ExtraTokens
       when(explorer.getUnspentBoxes("9f5ZKbECVTm25JTRQHDHGM5ehC8tUw5g1fCBQ4aaE792rWBFrjK")) thenReturn Seq(fakeBox1ExactTokens, fakeBox2LessTokens)
-      val result = new compiler.TxBuilder(explorer)
+      val result = new compiler.Compiler(explorer)
         .compile(
-          tokenFilterProtocol.copy(inputs =
-            someSeq(optSeq(tokenFilterProtocol.inputs)(0).copy(options = None), optSeq(tokenFilterProtocol.inputs)(1))
-          )
+          tokenFilterProgram.copy(inputs = someSeq(optSeq(tokenFilterProgram.inputs)(0).copy(options = None), optSeq(tokenFilterProgram.inputs)(1)))
         )
       result.inputBoxIds shouldBe Seq(
         "dbea46d988e86b1e60181b69936a3b927c3a4871aa6ed5258d3e4df155750bea",
@@ -265,17 +261,15 @@ class TokenSpec extends WordSpec with MockitoSugar with Matchers with TraitToken
     "reject boxes with extra tokens and Strict for input 1" in new TokenMocks {
       when(explorer.getBoxById("dbea46d988e86b1e60181b69936a3b927c3a4871aa6ed5258d3e4df155750bea")) thenReturn fakeBox0ExactTokens
       when(explorer.getUnspentBoxes("9f5ZKbECVTm25JTRQHDHGM5ehC8tUw5g1fCBQ4aaE792rWBFrjK")) thenReturn Seq(fakeBox2LessTokens, fakeBox1ExtraTokens)
-      the[Exception] thrownBy new compiler.TxBuilder(explorer).compile(tokenFilterProtocol) should have message "No box matched for input at index 1"
+      the[Exception] thrownBy new compiler.Compiler(explorer).compile(tokenFilterProgram) should have message "No box matched for input at index 1"
     }
 
     "select boxes with extra tokens and no Strict for input 1" in new TokenMocks {
       when(explorer.getBoxById("dbea46d988e86b1e60181b69936a3b927c3a4871aa6ed5258d3e4df155750bea")) thenReturn fakeBox0ExactTokens
       when(explorer.getUnspentBoxes("9f5ZKbECVTm25JTRQHDHGM5ehC8tUw5g1fCBQ4aaE792rWBFrjK")) thenReturn Seq(fakeBox2LessTokens, fakeBox1ExtraTokens)
-      val result = new compiler.TxBuilder(explorer)
+      val result = new compiler.Compiler(explorer)
         .compile(
-          tokenFilterProtocol.copy(inputs =
-            someSeq(optSeq(tokenFilterProtocol.inputs)(0), optSeq(tokenFilterProtocol.inputs)(1).copy(options = None))
-          )
+          tokenFilterProgram.copy(inputs = someSeq(optSeq(tokenFilterProgram.inputs)(0), optSeq(tokenFilterProgram.inputs)(1).copy(options = None)))
         )
       result.inputBoxIds shouldBe Seq(
         "dbea46d988e86b1e60181b69936a3b927c3a4871aa6ed5258d3e4df155750bea",
@@ -286,7 +280,7 @@ class TokenSpec extends WordSpec with MockitoSugar with Matchers with TraitToken
     "select boxes with exact tokens in both inputs and Strict option for both inputs" in new TokenMocks {
       when(explorer.getBoxById("dbea46d988e86b1e60181b69936a3b927c3a4871aa6ed5258d3e4df155750bea")) thenReturn fakeBox0ExactTokens
       when(explorer.getUnspentBoxes("9f5ZKbECVTm25JTRQHDHGM5ehC8tUw5g1fCBQ4aaE792rWBFrjK")) thenReturn Seq(fakeBox1ExactTokens, fakeBox2ExactTokens)
-      val result = new compiler.TxBuilder(explorer).compile(tokenFilterProtocol)
+      val result = new compiler.Compiler(explorer).compile(tokenFilterProgram)
       result.inputBoxIds shouldBe Seq(
         "dbea46d988e86b1e60181b69936a3b927c3a4871aa6ed5258d3e4df155750bea",
         "af0e35e1cf5a8890d70cef498c996dcd3e7658cfadd37695425032d4f8327d8a"
@@ -296,9 +290,9 @@ class TokenSpec extends WordSpec with MockitoSugar with Matchers with TraitToken
     "reject if post-condition fails" in new TokenMocks {
       when(explorer.getBoxById("dbea46d988e86b1e60181b69936a3b927c3a4871aa6ed5258d3e4df155750bea")) thenReturn fakeBox0ExactTokens
       when(explorer.getUnspentBoxes("9f5ZKbECVTm25JTRQHDHGM5ehC8tUw5g1fCBQ4aaE792rWBFrjK")) thenReturn Seq(fakeBox1ExactTokens, fakeBox2ExactTokens)
-      the[Exception] thrownBy new compiler.TxBuilder(explorer)
+      the[Exception] thrownBy new compiler.Compiler(explorer)
         .compile(
-          tokenFilterProtocol.copy(postConditions = tokenFilterProtocol.postConditions.map(_.map(_.copy(op = FilterOp.Eq))))
+          tokenFilterProgram.copy(postConditions = tokenFilterProgram.postConditions.map(_.map(_.copy(op = FilterOp.Eq))))
         ) should have message "Failed post-condition: myTokenAmount: (123) Eq thirdTokenAmount (12)"
     }
 
@@ -306,9 +300,9 @@ class TokenSpec extends WordSpec with MockitoSugar with Matchers with TraitToken
       when(explorer.getBoxById("dbea46d988e86b1e60181b69936a3b927c3a4871aa6ed5258d3e4df155750bea")) thenReturn fakeBox0ExactTokens
       when(explorer.getUnspentBoxes("9f5ZKbECVTm25JTRQHDHGM5ehC8tUw5g1fCBQ4aaE792rWBFrjK")) thenReturn Seq(fakeBox1ExactTokens, fakeBox2ExactTokens)
 
-      val firstException = the[Exception] thrownBy new compiler.TxBuilder(explorer)
+      val firstException = the[Exception] thrownBy new compiler.Compiler(explorer)
         .compile(
-          tokenFilterProtocol.copy(postConditions = Some(Seq(tokenFilterProtocol.postConditions.get(0).copy(first = "undefined"))))
+          tokenFilterProgram.copy(postConditions = Some(Seq(tokenFilterProgram.postConditions.get(0).copy(first = "undefined"))))
         )
 
       val secondException = firstException.getCause

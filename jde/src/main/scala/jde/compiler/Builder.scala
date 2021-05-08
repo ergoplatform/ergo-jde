@@ -2,10 +2,10 @@ package jde.compiler
 
 import kiosk.ergo
 import kiosk.ergo.{DataType, KioskBox, KioskType}
-import jde.compiler.model.{Multiple, Output, Protocol, RegNum}
+import jde.compiler.model.{Multiple, Output, Program, RegNum}
 
 class Builder(implicit dictionary: Dictionary) {
-  def buildOutputs(protocol: Protocol): Seq[KioskBox] = optSeq(protocol.outputs).flatMap(createOutput).filter(_.value > 0)
+  def buildOutputs(program: Program): Seq[KioskBox] = optSeq(program.outputs).flatMap(createOutput).filter(_.value > 0)
 
   private def createOutput(output: Output): Seq[KioskBox] = {
     type OutputRegister = KioskType[_]

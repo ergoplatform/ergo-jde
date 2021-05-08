@@ -1,6 +1,6 @@
 package cli
 
-import jde.compiler.TxBuilder.compileFromSource
+import jde.compiler.Compiler.compileFromSource
 
 import scala.io.Source
 

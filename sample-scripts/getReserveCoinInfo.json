@@ -1,0 +1,320 @@
+{
+  "constants": [
+    {
+      "name": "oraclePoolNFT",
+      "type": "CollByte",
+      "value": "011d3364de07e5a26f0c4eef0852cddb387039a921b7154ef3cab22c6eda887f"
+    },
+    {
+      "name": "bankNFT",
+      "type": "CollByte",
+      "value": "7d672d1def471720ca5782fd6473e47e796d9ac0c138d9911346f118b2f6d9d9"
+    },
+    {
+      "name": "bankAddress",
+      "type": "Address",
+      "value": "MUbV38YgqHy7XbsoXWF5z7EZm524Ybdwe5p9WDrbhruZRtehkRPT92imXer2eTkjwPDfboa1pR3zb3deVKVq3H7Xt98qcTqLuSBSbHb7izzo5jphEpcnqyKJ2xhmpNPVvmtbdJNdvdopPrHHDBbAGGeW7XYTQwEeoRfosXzcDtiGgw97b2aqjTsNFmZk7khBEQywjYfmoDc9nUCJMZ3vbSspnYo3LarLe55mh2Np8MNJqUN9APA6XkhZCrTTDRZb1B4krgFY1sVMswg2ceqguZRvC9pqt3tUUxmSnB24N6dowfVJKhLXwHPbrkHViBv1AKAJTmEaQW2DN1fRmD9ypXxZk8GXmYtxTtrj3BiunQ4qzUCu1eGzxSREjpkFSi2ATLSSDqUwxtRz639sHM6Lav4axoJNPCHbY8pvuBKUxgnGRex8LEGM8DeEJwaJCaoy8dBw9Lz49nq5mSsXLeoC4xpTUmp47Bh7GAZtwkaNreCu74m9rcZ8Di4w1cmdsiK1NWuDh9pJ2Bv7u3EfcurHFVqCkT3P86JUbKnXeNxCypfrWsFuYNKYqmjsix82g9vWcGMmAcu5nagxD4iET86iE2tMMfZZ5vqZNvntQswJyQqv2Wc6MTh4jQx1q2qJZCQe4QdEK63meTGbZNNKMctHQbp3gRkZYNrBtxQyVtNLR8xEY8zGp85GeQKbb37vqLXxRpGiigAdMe3XZA4hhYPmAAU5hpSMYaRAjtvvMT3bNiHRACGrfjvSsEG9G2zY5in2YWz5X9zXQLGTYRsQ4uNFkYoQRCBdjNxGv6R58Xq74zCgt19TxYZ87gPWxkXpWwTaHogG1eps8WXt8QzwJ9rVx6Vu9a5GjtcGsQxHovWmYixgBU8X9fPNJ9UQhYyAWbjtRSuVBtDAmoV1gCBEPwnYVP5GCGhCocbwoYhZkZjFZy6ws4uxVLid3FxuvhWvQrVEDYp7WRvGXbNdCbcSXnbeTrPMey1WPaXX"
+    },
+    {
+      "name": "poolAddresses",
+      "type": "Address",
+      "values": [
+        "NTkuk55NdwCXkF1e2nCABxq7bHjtinX3wH13zYPZ6qYT71dCoZBe1gZkh9FAr7GeHo2EpFoibzpNQmoi89atUjKRrhZEYrTapdtXrWU4kq319oY7BEWmtmRU9cMohX69XMuxJjJP5hRM8WQLfFnffbjshhEP3ck9CKVEkFRw1JDYkqVke2JVqoMED5yxLVkScbBUiJJLWq9BSbE1JJmmreNVskmWNxWE6V7ksKPxFMoqh1SVePh3UWAaBgGQRZ7TWf4dTBF5KMVHmRXzmQqEu2Fz2yeSLy23sM3pfqa78VuvoFHnTFXYFFxn3DNttxwq3EU3Zv25SmgrWjLKiZjFcEcqGgH6DJ9FZ1DfucVtTXwyDJutY3ksUBaEStRxoUQyRu4EhDobixL3PUWRcxaRJ8JKA9b64ALErGepRHkAoVmS8DaE6VbroskyMuhkTo7LbrzhTyJbqKurEzoEfhYxus7bMpLTePgKcktgRRyB7MjVxjSpxWzZedvzbjzZaHLZLkWZESk1WtdM25My33wtVLNXiTvficEUbjA23sNd24pv1YQ72nY1aqUHa2",
+        "EfS5abyDe4vKFrJ48K5HnwTqa1ksn238bWFPe84bzVvCGvK1h2B7sgWLETtQuWwzVdBaoRZ1HcyzddrxLcsoM5YEy4UnqcLqMU1MDca1kLw9xbazAM6Awo9y6UVWTkQcS97mYkhkmx2Tewg3JntMgzfLWz5mACiEJEv7potayvk6awmLWS36sJMfXWgnEfNiqTyXNiPzt466cgot3GLcEsYXxKzLXyJ9EfvXpjzC2abTMzVSf1e17BHre4zZvDoAeTqr4igV3ubv2PtJjntvF2ibrDLmwwAyANEhw1yt8C8fCidkf3MAoPE6T53hX3Eb2mp3Xofmtrn4qVgmhNonnV8ekWZWvBTxYiNP8Vu5nc6RMDBv7P1c5rRc3tnDMRh2dUcDD7USyoB9YcvioMfAZGMNfLjWqgYu9Ygw2FokGBPThyWrKQ5nkLJvief1eQJg4wZXKdXWAR7VxwNftdZjPCHcmwn6ByRHZo9kb4Emv3rjfZE"
+      ]
+    },
+    {
+      "name":"coolingOffHeight",
+      "type":"Int",
+      "value":"460000"
+    },
+    {
+      "name": "rcCircDelta",
+      "type": "Long",
+      "value": "5"
+    },
+    {
+      "name": "0",
+      "type": "Long",
+      "value": "0"
+    },
+    {
+      "name": "1",
+      "type": "Long",
+      "value": "1"
+    },
+    {
+      "name": "feePercent",
+      "type": "Long",
+      "value": "2"
+    },
+    {
+      "name": "100",
+      "type": "Long",
+      "value": "100"
+    },
+    {
+      "name": "rcDefaultPrice",
+      "type": "Long",
+      "value": "1000000"
+    },
+    {
+      "name": "defaultMaxReserveRatioPercent",
+      "type": "Long",
+      "value": "800"
+    }
+  ],
+  "dataInputs": [
+    {
+      "address": {
+        "value": "poolAddresses"
+      },
+      "registers": [
+        {
+          "num": "R4",
+          "name": "rateUSD",
+          "type": "Long"
+        }
+      ]
+    }
+  ],
+  "inputs": [
+    {
+      "address": {
+        "value": "bankAddress"
+      },
+      "tokens": [
+        {
+          "index": 0,
+          "id": {
+            "name": "scToken"
+          },
+          "amount": {
+            "name": "scTokenIn"
+          }
+        },
+        {
+          "index": 1,
+          "id": {
+            "name": "rcToken"
+          },
+          "amount": {
+            "name": "rcTokenIn",
+            "filter": "Gt",
+            "value": "rcCircDelta"
+          }
+        },
+        {
+          "index": 2,
+          "id": {
+            "value": "bankNFT"
+          },
+          "amount": {
+            "value": "1"
+          }
+        }
+      ],
+      "registers": [
+        {
+          "num": "R4",
+          "name": "scCircIn",
+          "type": "Long"
+        },
+        {
+          "num": "R5",
+          "name": "rcCircIn",
+          "type": "Long"
+        }
+      ],
+      "nanoErgs": {
+        "name": "bcReserveIn"
+      }
+    }
+  ],
+  "unaryOps": [
+    {
+      "name": "fee * -1",
+      "op": "Neg",
+      "from": "fee"
+    }
+  ],
+  "branches": [
+    {
+      "name": "maxReserveRatioPercent",
+      "ifTrue": "defaultMaxReserveRatioPercent",
+      "ifFalse": "INF",
+      "condition": {
+        "first": "HEIGHT",
+        "op": "Lt",
+        "second": "coolingOffHeight"
+      }
+    },
+    {
+      "name": "reserveRatioPercentOut",
+      "ifTrue": "maxReserveRatioPercent",
+      "ifFalse": "bcReserveOut * 100 / bcReserveNeededIn",
+      "condition": {
+        "first": "bcReserveNeededIn",
+        "second": "0",
+        "op": "Eq"
+      }
+    },
+    {
+      "name": "reserveRatioPercentIn",
+      "ifTrue": "maxReserveRatioPercent",
+      "ifFalse": "bcReserveIn * 100 / bcReserveNeededIn",
+      "condition": {
+        "first": "bcReserveNeededIn",
+        "second": "0",
+        "op": "Eq"
+      }
+    },
+    {
+      "name": "equityRate",
+      "ifTrue": "rcDefaultPrice",
+      "ifFalse": "equityIn / rcCircIn",
+      "condition": {
+        "first": "rcCircIn",
+        "second": "0",
+        "op": "Eq"
+      }
+    },
+    {
+      "name": "rcNominalPrice",
+      "ifTrue": "rcDefaultPrice",
+      "ifFalse": "equityRate",
+      "condition": {
+        "first": "equityIn",
+        "second": "0",
+        "op": "Eq"
+      }
+    },
+    {
+      "name": "actualFee",
+      "ifTrue": "fee * -1",
+      "ifFalse": "fee",
+      "condition": {
+        "first": "fee",
+        "second": "0",
+        "op": "Lt"
+      }
+    }
+
+  ],
+  "binaryOps": [
+    {
+      "name": "bcReserveIn * 100 / bcReserveNeededIn",
+      "first": "bcReserveIn * 100",
+      "op": "Div",
+      "second": "bcReserveNeededIn"
+    },
+    {
+      "name": "bcReserveOut * 100 / bcReserveNeededIn",
+      "first": "bcReserveOut * 100",
+      "op": "Div",
+      "second": "bcReserveNeededIn"
+    },
+    {
+      "name": "bcReserveOut * 100",
+      "first": "bcReserveOut",
+      "op": "Mul",
+      "second": "100"
+    },
+    {
+      "name": "bcReserveIn * 100",
+      "first": "bcReserveIn",
+      "op": "Mul",
+      "second": "100"
+    },
+    {
+      "name": "rcTokenOut",
+      "first": "rcTokenIn",
+      "op": "Sub",
+      "second": "rcCircDelta"
+    },
+    {
+      "name": "rcCircOut",
+      "first": "rcCircIn",
+      "op": "Add",
+      "second": "rcCircDelta"
+    },
+    {
+      "name": "rate",
+      "first": "rateUSD",
+      "op": "Div",
+      "second": "100"
+    },
+    {
+      "name": "bcReserveNeededIn",
+      "first": "rate",
+      "op": "Mul",
+      "second": "scCircIn"
+    },
+    {
+      "name": "liabilitiesIn",
+      "first": "bcReserveIn",
+      "op": "Min",
+      "second": "bcReserveNeededIn"
+    },
+    {
+      "name": "equityIn",
+      "first": "bcReserveIn",
+      "op": "Sub",
+      "second": "liabilitiesIn"
+    },
+    {
+      "name": "equityIn / rcCircIn",
+      "first": "equityIn",
+      "op": "Div",
+      "second": "rcCircIn"
+    },
+    {
+      "name": "bcDelta",
+      "first": "rcNominalPrice",
+      "op": "Mul",
+      "second": "rcCircDelta"
+    },
+    {
+      "name": "bcDelta * feePercent",
+      "first": "bcDelta",
+      "op": "Mul",
+      "second": "feePercent"
+    },
+    {
+      "name": "fee",
+      "first": "bcDelta * feePercent",
+      "op": "Div",
+      "second": "100"
+    },
+    {
+      "name": "bcDeltaWithFee",
+      "first": "bcDelta",
+      "op": "Add",
+      "second": "actualFee"
+    },
+    {
+      "name": "bcReserveOut",
+      "first": "bcReserveIn",
+      "op": "Add",
+      "second": "bcDeltaWithFee"
+    }
+  ],
+  "returns": [
+    "scToken",
+    "rcToken",
+    "bankNFT",
+    "scTokenIn",
+    "rcTokenIn",
+    "scCircIn",
+    "rcCircIn",
+    "bcReserveIn",
+    "reserveRatioPercentIn",
+    "reserveRatioPercentOut",
+    "rcCircDelta",
+    "bcDelta",
+    "bcDeltaWithFee",
+    "rcNominalPrice",
+    "rateUSD",
+    "rate"
+  ]
+}

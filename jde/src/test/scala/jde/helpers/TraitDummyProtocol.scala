@@ -4,7 +4,7 @@ import jde.compiler.model._
 import jde.parser.Parser
 import kiosk.ergo.{DataType, usingSource}
 
-trait TraitDummyProtocol {
+trait TraitDummyProgram {
   object DummyDeclarations {
     val myLong1 = Constant("myLong1", DataType.Long, Some("1234"), None)
     val myInt = Constant("myInt", DataType.Int, Some("1234"), None)
@@ -89,7 +89,7 @@ trait TraitDummyProtocol {
     )
   }
   import DummyDeclarations._
-  val dummyProtocol = Protocol(
+  val dummyProgram = Program(
     constants,
     auxInputs = None,
     dataInputs = Some(Seq(myInput1, myInput2)),
@@ -164,6 +164,6 @@ trait TraitDummyProtocol {
     )
   )
 
-  val dummyProtocolSource = usingSource(scala.io.Source.fromFile("src/test/resources/dummy-protocol.json"))(_.getLines.mkString)
-  val dummyProtocolFromJson = Parser.parse(dummyProtocolSource)
+  val dummyProgramSource = usingSource(scala.io.Source.fromFile("src/test/resources/dummy-program.json"))(_.getLines.mkString)
+  val dummyProgramFromJson = Parser.parse(dummyProgramSource)
 }

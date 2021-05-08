@@ -14,7 +14,7 @@ import scala.util.Try
   contains objects exposed externally (these form the primitives of the source code and the compiled results)
  */
 
-case class Protocol(
+case class Program(
     constants: Option[Seq[Constant]],
     auxInputs: Option[Seq[Input]],
     dataInputs: Option[Seq[Input]],
@@ -27,7 +27,7 @@ case class Protocol(
     postConditions: Option[Seq[PostCondition]],
     returns: Option[Seq[String]]
 ) {
-  def withUuid(input: Input): (Input, UUID) = input -> UUID.randomUUID
+  private[compiler] def withUuid(input: Input): (Input, UUID) = input -> UUID.randomUUID
   private[compiler] lazy val auxInputUuids: Option[Seq[(Input, UUID)]] = auxInputs.map(_.map(withUuid))
   private[compiler] lazy val dataInputUuids: Option[Seq[(Input, UUID)]] = dataInputs.map(_.map(withUuid))
   private[compiler] lazy val inputUuids: Option[Seq[(Input, UUID)]] = inputs.map(_.map(withUuid))
@@ -227,6 +227,8 @@ case class CompileResult(
     inputNanoErgs: scala.Long,
     inputTokens: Seq[(String, scala.Long)],
     outputs: Seq[KioskBox],
+    outputNanoErgs: scala.Long,
+    outputTokens: Seq[(String, scala.Long)],
     fee: Option[scala.Long],
     returned: Seq[ReturnedValue]
 )
