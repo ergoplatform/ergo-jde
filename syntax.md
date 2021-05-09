@@ -2,30 +2,18 @@
 
 This document explains the syntax of JDE scripts.
 
-#### Overview of JDE
+Before going further, it is instructive to see a complete example in action.
 
-- JDE allows us to define the input and data inputs of a transaction, along with some auxiliary boxes that are neither inputs nor data-inputs.  Auxiliary boxes are used only during computation.
-- Each such box is defined using a **box definition**. A box definition is a sequence of **instructions** to filter boxes. Currently, we can filter using tokens, registers and nanoErgs.
-- Currently, boxes can be searched either by address or by box-id. With box-id, there can be at most one box, so we can unambiguously define a box.
-  However, when matching with address, there can be multiple boxes. These are handled as follows:
-    - The boxes are first filtered using the instructions.
-    - The resulting boxes are then sorted by value in decreasing order
-    - The first box (if any) is selected as the matched box.
-- An error is thrown if no boxes match a definition, unless the `optional` flag is set (see below).
+### A complete example
 
-JDE is more verbose than, for example, Scala. As an example, the Scala code `c = a + b` must be written in JDE as
-`{"name":"c", "first":"a", "op":"Add", "second":"b"}`.
-That said, the only thing needed to use JDE is the ability to write Json (and possibly use a pen and paper).
+JDE is essentially a compiler that takes as input a JSON-encoded program.
+The script has instructions to search the blockchain, compute some values and return some data.
+The output of JDE is a *transaction template*.
 
-JDE is used in [KioskWeb](https://github.com/scalahub/KioskWeb) wallet within a tool called ["Tx Builder"](https://kioskweb.org/session/#kiosk.Wallet.txBuilder).
-
-#### A complete example
-
-Before describing further, it is instructive to see a complete example in action.
+#### Output of JDE
 
 The command `java -jar target/scala-2.12/jde.jar src/test/resources/timestamp.json` gives the following output:
-
-```
+```JSON
 {
   "dataInputBoxIds" : [ "506dfb0a34d44f2baef77d99f9da03b1f122bdc4c7c31791a0c706e23f1207e7" ],
   "inputBoxIds" : [ "4c17e0e9f72122164aa3530453675625dc69941ed3da9de6b0a8659db929709a" ],
@@ -39,17 +27,21 @@ The command `java -jar target/scala-2.12/jde.jar src/test/resources/timestamp.js
   }, {
     "address" : "4MQyMKvMbnCJG3aJ",
     "value" : 2000000,
-    "registers" : [ "0e20506dfb0a34d44f2baef77d99f9da03b1f122bdc4c7c31791a0c706e23f1207e7", "04c08633" ],
+    "registers" : [ "0e20506dfb0a34d44f2baef77d99f9da03b1f122bdc4c7c31791a0c706e23f1207e7", "04a0843b" ],
     "tokens" : [ [ "dbea46d988e86b1e60181b69936a3b927c3a4871aa6ed5258d3e4df155750bea", 1 ] ]
-  } ]
+  } ],
+  "outputNanoErgs" : 3500000,
+  "outputTokens" : [ [ "dbea46d988e86b1e60181b69936a3b927c3a4871aa6ed5258d3e4df155750bea", 995 ] ],
+  "returned" : [ ]
 }
-
 ```
 
-The above is a _transaction template_.
+The above structure (more specifically the fields `dataInputBoxIds`, `inputBoxIds`, `inputNanoErgs`, `inputTokens` and `outputs`) is called a _transaction template_.
 
-The following is the source of `timestamp.json`:
-```
+#### Input to JDE
+The following is the source of `timestamp.json`.
+
+```JSON
 {
   "constants": [
     {
@@ -183,7 +175,7 @@ The following is the source of `timestamp.json`:
 ```
 The following sections describe the syntax of the above scripting language in more detail.
 
-#### Program
+### Program
 
 Internally, each JSON script is compiled to an instance of a `Program`.
 A `Program` is the highest level of abstraction in JDE and can be thought of as a sequence of instructions for interacting with a dApp.
@@ -200,7 +192,7 @@ As can be seen from the [source code](/jde/src/main/scala/jde/compiler/model/Ext
 - Sequence of `PostCondition` instructions which must evaluate to true.
 - Sequence of variables to returned, defined via the `returns` field.
 
-#### Declarations
+### Declarations
 
 The next level of abstraction is a `Declaration`, which is of the following sub-types:
 - **Constants**: These specify initial values. Examples:
@@ -239,7 +231,7 @@ The following are some example declarations:
 - The third defines the (Long) value `actualNanoErgs` and references `someMinValue`.
   An error occurs if `actualNanoErgs < someMinValue`.
 
-#### Targets and Pointers
+### Targets and Pointers
 
 For clarity, we use the following terminology when describing box declarations:
 - A declaration that defines a variable is a "target".
@@ -310,7 +302,7 @@ For instance, to select a box with no tokens, skip `tokens` field (or set it to 
 
 This option applies to tokens only.
 
-#### Order of evaluation
+### Order of evaluation
 Declarations are evaluated in the following order:
 - Constants
 - Computation boxes (`boxes`)  (from low to high index)
@@ -320,7 +312,7 @@ Declarations are evaluated in the following order:
 - Output boxes
 - Binary Ops, Unary Ops are "Lazy" (i.e., evaluated only if needed)
 
-#### Referencing rules
+### Referencing rules
 - The order of evaluation determines what can and cannot be referenced. A pointer can only refer to a target that has been evaluated previously.
     - Thus, a pointer in inputs can refer to a target in data-inputs, but a pointer in data-inputs cannot refer to a target in inputs.
     - Similarly, a pointer in the second input can refer to a target in the first input, but a pointer in the first input
@@ -368,7 +360,7 @@ Note: when matching multiple addresses, we can use `name` to store the actual ad
 }
 ```
 
-#### Matching multiple inputs
+### Matching multiple inputs
 
 Each input definition matches at most one input by default. If multiple inputs are matched, the first one is selected. In order to select all matched inputs use the `Multi` option for that input definiton:
 
@@ -385,7 +377,7 @@ Each input definition matches at most one input by default. If multiple inputs a
 
 Multiple objects defined via `Constant` or matched using the `Multi` option are internally stored as an instance of the [`Multiple`](/jde/src/main/scala/jde/compiler/model/Multiple.scala) class.
 
-#### Output of JDE
+### Output of JDE
 
 The JDE compiler takes as input an instance of **Protocol** and outputs and instance of
 [**CompileResult**](/jde/src/main/scala/jde/compiler/model/External.scala), which contains the following details:

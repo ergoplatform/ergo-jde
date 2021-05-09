@@ -138,6 +138,13 @@ for Sigma-USD, we can have post-conditions to check that the reserve ratio is be
 
 Each of the above components are optional. If the outputs are not specified then the transaction template won't be created.
 
-The folder `/sample-scripts` contains several sample JDE programs. 
+Unspent boxes can be searched by address and/or box-id. With box-id, there can be at most one box, so we can unambiguously define a box.
+  However, when matching with address, there can be multiple boxes. These are handled as follows:
+   - The selected boxes are filtered using registers, tokens and nano-ergs.
+   - The resulting boxes are then sorted by nano-erg value in decreasing order.
+   - The first box (if any) is selected as the matched box. If the `multi` flag is set then all boxes are selected.
+- An error is thrown if no boxes match a definition, unless the `optional` flag is set.
+
+The folder `/sample-scripts` contains several sample JDE programs. The [tests](/jde/src/test/scala/jde) contain more examples. 
 
 See [this document](/syntax.md) for the syntax of JDE programs.

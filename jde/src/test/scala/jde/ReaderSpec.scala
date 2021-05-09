@@ -3,13 +3,11 @@ package jde
 import jde.compiler.Compiler
 import jde.compiler.model.CompileResult
 import jde.parser.Parser
-import kiosk.encoding.ScalaErgoConverters
-import kiosk.ergo.{KioskBox, KioskErgoTree}
+import kiosk.ergo.KioskBox
 import kiosk.explorer.Explorer
 import org.mockito.Mockito.when
 import org.scalatest.{Matchers, WordSpec}
 import org.scalatestplus.mockito._
-import sigmastate.Values.ErgoTree
 
 class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
   val explorer: Explorer = mock[Explorer]
@@ -20,6 +18,8 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
 
   trait Mocks {
     val myAddress = "9etuNZvRv3PZLq5HigoSMUANgmF6f7jTJLfnmdjuzUKQ7WH9ysD"
+    val otherAddress =
+      "2z93aPPTpVrZJHkQN54V7PatEfg3Ac1zKesFxUz8TGGZwPT4Rr5q6tBwsjEjounQU4KNZVqbFAUsCNipEKZmMdx2WTqFEyUURcZCW2CrSqKJ8YNtSVDGm7eHcrbPki9VRsyGpnpEQvirpz6GKZgghcTRDwyp1XtuXoG7XWPC4bT1U53LhiM3exE2iUDgDkme2e5hx9dMyBUi9TSNLNY1oPy2MjJ5seYmGuXCTRPLqrsi"
     val boxId1 = "506dfb0a34d44f2baef77d99f9da03b1f122bdc4c7c31791a0c706e23f1207e7"
     val boxId2 = "dbea46d988e86b1e60181b69936a3b927c3a4871aa6ed5258d3e4df155750bea"
     val boxId3 = "af0e35e1cf5a8890d70cef498c996dcd3e7658cfadd37695425032d4f8327d8a"
@@ -63,7 +63,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
 
     val code: String
 
-    lazy val getResult: CompileResult = new compiler.Compiler(explorer).compile(Parser.parse(code))
+    lazy val result: CompileResult = new compiler.Compiler(explorer).compile(Parser.parse(code))
   }
 
   "Reader" should {
@@ -86,7 +86,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
                          |}
                          |""".stripMargin
 
-      getResult.inputBoxIds shouldBe Seq(boxId1)
+      result.inputBoxIds shouldBe Seq(boxId1)
     }
 
     "select second box when filtered by id" in new Mocks {
@@ -108,7 +108,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
                          |}
                          |""".stripMargin
 
-      getResult.inputBoxIds shouldBe Seq(boxId2)
+      result.inputBoxIds shouldBe Seq(boxId2)
     }
 
     "should throw exception when filtered by address and non-existent id" in new Mocks {
@@ -138,7 +138,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
                          |}
                          |""".stripMargin
 
-      the[Exception] thrownBy getResult should have message "No box matched for input at index 0"
+      the[Exception] thrownBy result should have message "No box matched for input at index 0"
     }
 
     "should throw exception when filtered by non-existent address and boxId" in new Mocks {
@@ -151,7 +151,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
                          |    },
                          |    {
                          |      "name": "someAddress",
-                         |      "value": "2z93aPPTpVrZJHkQN54V7PatEfg3Ac1zKesFxUz8TGGZwPT4Rr5q6tBwsjEjounQU4KNZVqbFAUsCNipEKZmMdx2WTqFEyUURcZCW2CrSqKJ8YNtSVDGm7eHcrbPki9VRsyGpnpEQvirpz6GKZgghcTRDwyp1XtuXoG7XWPC4bT1U53LhiM3exE2iUDgDkme2e5hx9dMyBUi9TSNLNY1oPy2MjJ5seYmGuXCTRPLqrsi",
+                         |      "value": "$otherAddress",
                          |      "type": "Address"
                          |    }
                          |  ],
@@ -168,7 +168,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
                          |}
                          |""".stripMargin
 
-      the[Exception] thrownBy getResult should have message "No box matched for input at index 0"
+      the[Exception] thrownBy result should have message "No box matched for input at index 0"
     }
 
     "select no boxes when filtered by address and non-existent id with 'optional' option" in new Mocks {
@@ -201,7 +201,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
                          |}
                          |""".stripMargin
 
-      getResult.inputBoxIds shouldBe Nil
+      result.inputBoxIds shouldBe Nil
     }
 
     "select no boxes when filtered by non-existent address and id with 'optional' option" in new Mocks {
@@ -214,7 +214,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
                          |    },
                          |    {
                          |      "name": "someAddress",
-                         |      "value": "2z93aPPTpVrZJHkQN54V7PatEfg3Ac1zKesFxUz8TGGZwPT4Rr5q6tBwsjEjounQU4KNZVqbFAUsCNipEKZmMdx2WTqFEyUURcZCW2CrSqKJ8YNtSVDGm7eHcrbPki9VRsyGpnpEQvirpz6GKZgghcTRDwyp1XtuXoG7XWPC4bT1U53LhiM3exE2iUDgDkme2e5hx9dMyBUi9TSNLNY1oPy2MjJ5seYmGuXCTRPLqrsi",
+                         |      "value": "$otherAddress",
                          |      "type": "Address"
                          |    }
                          |  ],
@@ -234,7 +234,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
                          |}
                          |""".stripMargin
 
-      getResult.inputBoxIds shouldBe Nil
+      result.inputBoxIds shouldBe Nil
     }
 
     "select all boxes when filtered by address with 'multi' option" in new Mocks {
@@ -259,7 +259,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
                          |}
                          |""".stripMargin
 
-      getResult.inputBoxIds shouldBe Seq(boxId1, boxId2, boxId3)
+      result.inputBoxIds shouldBe Seq(boxId1, boxId2, boxId3)
     }
 
     "select first and second boxes when filtered by multiple ids with 'multi' option" in new Mocks {
@@ -286,7 +286,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
                          |  ]
                          |}
                          |""".stripMargin
-      getResult.inputBoxIds shouldBe Seq(boxId1, boxId2)
+      result.inputBoxIds shouldBe Seq(boxId1, boxId2)
     }
 
     "select second box when filtered by address and token" in new Mocks {
@@ -329,7 +329,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
                         |}
                         |""".stripMargin
 
-      getResult.inputBoxIds shouldBe Seq(boxId2)
+      result.inputBoxIds shouldBe Seq(boxId2)
     }
 
     "select second box when filtered by address and id" in new Mocks {
@@ -359,7 +359,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
                        |}
                        |""".stripMargin
 
-      getResult.inputBoxIds shouldBe Seq(boxId2)
+      result.inputBoxIds shouldBe Seq(boxId2)
     }
 
     "select third box when filtered by address and multiple ids" in new Mocks {
@@ -392,7 +392,7 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
                        |}
                        |""".stripMargin
 
-      getResult.inputBoxIds shouldBe Seq(boxId3)
+      result.inputBoxIds shouldBe Seq(boxId3)
     }
 
     "select third and second boxes when filtered by address and multiple ids with 'multi' option" in new Mocks {
@@ -428,7 +428,46 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
                        |}
                        |""".stripMargin
 
-      getResult.inputBoxIds shouldBe Seq(boxId3, boxId2)
+      result.inputBoxIds shouldBe Seq(boxId3, boxId2)
+    }
+
+    "select third and second boxes when filtered by multiple addresses and ids with 'multi' option" in new Mocks {
+      lazy val code: String = s"""{
+                       |  "constants":[
+                       |    {
+                       |      "name": "myAddress",
+                       |      "values": [
+                       |         "$myAddress",
+                       |         "$otherAddress"
+                       |      ],
+                       |      "type": "Address"
+                       |    },
+                       |    {
+                       |      "name": "boxIds",
+                       |      "values": [
+                       |         "$boxId3",
+                       |         "$boxId2"
+                       |      ],
+                       |      "type": "CollByte"
+                       |    }
+                       |  ],
+                       |  "inputs": [
+                       |    {
+                       |      "address": {
+                       |        "value": "myAddress"
+                       |      },
+                       |      "id": {
+                       |         "value": "boxIds"
+                       |      },
+                       |      "options": [
+                       |        "multi"
+                       |      ]
+                       |    }
+                       |  ]
+                       |}
+                       |""".stripMargin
+
+      result.inputBoxIds shouldBe Seq(boxId3, boxId2)
     }
 
     "Assign correct names when when filtered by address and multiple ids with 'multi' option" in new Mocks {
@@ -436,11 +475,14 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
                        |  "constants":[
                        |    {
                        |      "name": "myAddress",
-                       |      "value": "$myAddress",
+                       |      "values": [
+                       |         "$myAddress",
+                       |         "$otherAddress"
+                       |      ],
                        |      "type": "Address"
                        |    },
                        |    {
-                       |      "name": "boxIds",
+                       |      "name": "boxId",
                        |      "values": [
                        |         "$boxId3",
                        |         "$boxId2",
@@ -452,12 +494,12 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
                        |  "inputs": [
                        |    {
                        |      "address": {
-                       |        "name": "myNewAddress",
+                       |        "name": "matchedAddress",
                        |        "value": "myAddress"
                        |      },
                        |      "id": {
-                       |        "name": "matched",
-                       |        "value": "boxIds"
+                       |        "name": "matchedBoxId",
+                       |        "value": "boxId"
                        |      },
                        |      "options": [
                        |        "multi"
@@ -465,24 +507,20 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
                        |    }
                        |  ],
                        |  "returns": [
-                       |    "myNewAddress",
-                       |    "matched",
-                       |    "boxIds"
+                       |    "matchedAddress",
+                       |    "myAddress",
+                       |    "matchedBoxId",
+                       |    "boxId"
                        |  ]
                        |}
                        |""".stripMargin
 
-      val result = getResult
       result.inputBoxIds shouldBe Seq(boxId3, boxId2)
-      result.returned
-        .flatMap(v => v.values.map(_.toString)) shouldBe Seq(
-        s"ErgoTree of $myAddress",
-        s"ErgoTree of $myAddress",
-        boxId3,
-        boxId2,
-        boxId3,
-        boxId2,
-        tokenId1
+      result.returned.map(v => v.values.map(_.toString)) shouldBe Seq(
+        Seq(s"ErgoTree of $myAddress", s"ErgoTree of $myAddress"),
+        Seq(s"ErgoTree of $myAddress", s"ErgoTree of $otherAddress"),
+        Seq(boxId3, boxId2),
+        Seq(boxId3, boxId2, tokenId1)
       )
     }
 
@@ -506,11 +544,11 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
                        |  "inputs": [
                        |    {
                        |      "address": {
-                       |        "name": "myNewAddress",
+                       |        "name": "matchedAddress",
                        |        "value": "myAddress"
                        |      },
                        |      "id": {
-                       |        "name": "matched"
+                       |        "name": "matchedBoxId"
                        |      },
                        |      "options": [
                        |        "multi"
@@ -518,22 +556,16 @@ class ReaderSpec extends WordSpec with MockitoSugar with Matchers {
                        |    }
                        |  ],
                        |  "returns": [
-                       |    "myNewAddress",
-                       |    "matched"
+                       |    "matchedAddress",
+                       |    "matchedBoxId"
                        |  ]
                        |}
                        |""".stripMargin
 
-      val result = getResult
       result.inputBoxIds shouldBe Seq(boxId1, boxId2, boxId3)
-      result.returned
-        .flatMap(v => v.values.map(_.toString)) shouldBe Seq(
-        s"ErgoTree of $myAddress",
-        s"ErgoTree of $myAddress",
-        s"ErgoTree of $myAddress",
-        boxId1,
-        boxId2,
-        boxId3
+      result.returned.map(v => v.values.map(_.toString)) shouldBe Seq(
+        Seq(s"ErgoTree of $myAddress", s"ErgoTree of $myAddress", s"ErgoTree of $myAddress"),
+        Seq(boxId1, boxId2, boxId3)
       )
 
     }
