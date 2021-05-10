@@ -10,9 +10,12 @@ import play.api.libs.json.Json
 import scala.io.BufferedSource
 
 object Compiler {
-  def compileFromSource(bufferedSource: BufferedSource) = {
+  def compileToJson(bufferedSource: BufferedSource) = {
+    Json.prettyPrint(Json.toJson(compile(bufferedSource)))
+  }
+  def compile(bufferedSource: BufferedSource) = {
     val script = usingSource(bufferedSource)(_.mkString)
-    Json.prettyPrint(Json.toJson(new Compiler(new Explorer).compile(parse(script))))
+    new Compiler(new Explorer).compile(parse(script))
   }
 }
 

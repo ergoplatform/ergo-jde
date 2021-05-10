@@ -19,7 +19,7 @@ resolvers ++= Seq(
 
 updateOptions := updateOptions.value.withLatestSnapshots(false)
 
-lazy val commonSettings: Def.Setting[Seq[ModuleID]] = libraryDependencies ++= Seq(
+lazy val `commonSettings`: Def.Setting[Seq[ModuleID]] = libraryDependencies ++= Seq(
   "org.scala-lang.modules" %% "scala-collection-compat" % "2.1.3",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.+",
   "org.ergoplatform" %% "ergo-appkit" % "4.0.3",
@@ -42,12 +42,13 @@ lazy val JDE = Project("jde", file("jde"))
     )
   )
 
-lazy val myMainClass = "cli.CLI"
+lazy val myMainClass = "cli.Compile"
 lazy val myJarName = "jde.jar"
 
 lazy val root = Project("ErgoJDE", file("."))
   .dependsOn(JDE)
   .settings(
+    commonSettings,
     libraryDependencies += "javax.servlet" % "servlet-api" % "2.5" % "provided", // for servlet
     Compile / mainClass := Some(myMainClass),
     assembly / mainClass := Some(myMainClass),

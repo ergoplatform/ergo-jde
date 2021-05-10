@@ -1,14 +1,14 @@
 package cli
 
-import jde.compiler.Compiler.compileFromSource
+import jde.compiler.Compiler.compileToJson
 
 import scala.io.Source
 
-object CLI {
+object Compile {
   def main(args: Array[String]): Unit = {
     if (args.size != 1) println("Usage java -jar <jarFile> <script.json>")
     else {
-      val resp = compileFromSource(Source.fromFile(args(0)))
+      val resp = compileToJson(Source.fromFile(args(0)))
       println(resp)
     }
   }

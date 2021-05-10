@@ -4,6 +4,7 @@ import jde.compiler.model.MatchingOptions.{Optional, Strict}
 import jde.compiler.model.{FilterOp, MatchingOptions, Output}
 import jde.compiler.{Compiler, model, optSeq}
 import jde.helpers.TraitTokenFilter
+import jde.parser.Parser
 import kiosk.ergo.KioskBox
 import kiosk.explorer.Explorer
 import org.mockito.Mockito.when
@@ -314,6 +315,83 @@ class TokenSpec extends WordSpec with MockitoSugar with Matchers with TraitToken
       secondException should have message "Error pairing undefined and thirdTokenAmount"
 
       thirdException should have message "key not found: undefined"
+    }
+
+    "select boxes with tokens for input 0" in new TokenMocks {
+      when(explorer.getUnspentBoxes("9f5ZKbECVTm25JTRQHDHGM5ehC8tUw5g1fCBQ4aaE792rWBFrjK")) thenReturn Seq(fakeBox1ExactTokens)
+      val program = Parser.parse(
+        s"""{
+           |  "constants": [
+           |    {
+           |      "name": "myAddress",
+           |      "type": "Address",
+           |      "value": "9f5ZKbECVTm25JTRQHDHGM5ehC8tUw5g1fCBQ4aaE792rWBFrjK"
+           |    }
+           |  ],
+           |  "inputs": [
+           |    {
+           |      "address": {
+           |        "value": "myAddress"
+           |      },
+           |      "tokens": [ ]
+           |    }
+           |  ]
+           |}""".stripMargin
+      )
+      new compiler.Compiler(explorer).compile(program).inputBoxIds shouldBe Seq(fakeBox1ExactTokens.optBoxId.get)
+    }
+
+    "reject boxes with tokens and Strict option for input 0" in new TokenMocks {
+      when(explorer.getUnspentBoxes("9f5ZKbECVTm25JTRQHDHGM5ehC8tUw5g1fCBQ4aaE792rWBFrjK")) thenReturn Seq(fakeBox1ExactTokens)
+      val program = Parser.parse(
+        s"""{
+           |  "constants": [
+           |    {
+           |      "name": "myAddress",
+           |      "type": "Address",
+           |      "value": "9f5ZKbECVTm25JTRQHDHGM5ehC8tUw5g1fCBQ4aaE792rWBFrjK"
+           |    }
+           |  ],
+           |  "inputs": [
+           |    {
+           |      "address": {
+           |        "value": "myAddress"
+           |      },
+           |      "tokens": [ ],
+           |      "options": [
+           |         "Strict"
+           |      ]
+           |    }
+           |  ]
+           |}""".stripMargin
+      )
+      the[Exception] thrownBy new compiler.Compiler(explorer).compile(program) should have message "No box matched for input at index 0"
+    }
+
+    "reject boxes with tokens and Strict option for input 0 without tokens specified" in new TokenMocks {
+      when(explorer.getUnspentBoxes("9f5ZKbECVTm25JTRQHDHGM5ehC8tUw5g1fCBQ4aaE792rWBFrjK")) thenReturn Seq(fakeBox1ExactTokens)
+      val program = Parser.parse(
+        s"""{
+           |  "constants": [
+           |    {
+           |      "name": "myAddress",
+           |      "type": "Address",
+           |      "value": "9f5ZKbECVTm25JTRQHDHGM5ehC8tUw5g1fCBQ4aaE792rWBFrjK"
+           |    }
+           |  ],
+           |  "inputs": [
+           |    {
+           |      "address": {
+           |        "value": "myAddress"
+           |      },
+           |      "options": [
+           |         "Strict"
+           |      ]
+           |    }
+           |  ]
+           |}""".stripMargin
+      )
+      the[Exception] thrownBy new compiler.Compiler(explorer).compile(program) should have message "No box matched for input at index 0"
     }
   }
 }

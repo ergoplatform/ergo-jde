@@ -9,15 +9,7 @@ import scala.io.BufferedSource
 import scala.util.Try
 
 package object ergo {
-//  class BetterString(string: String) {
-//    def decodeHex = Hex.decode(string)
-//  }
-
   implicit def ByteArrayToBetterByteArray(bytes: Array[Byte]) = new BetterByteArray(bytes)
-
-//  class BetterByteArray(bytes: Seq[Byte]) {
-//    def encodeHex: String = Hex.toHexString(bytes.toArray).toLowerCase
-//  }
 
   implicit def StringToBetterString(string: String) = new BetterString(string)
 
@@ -38,5 +30,4 @@ package object ergo {
   def usingSource[B](param: BufferedSource)(f: BufferedSource => B): B =
     try f(param)
     finally param.close
-
 }
