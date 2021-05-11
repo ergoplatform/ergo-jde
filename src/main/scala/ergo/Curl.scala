@@ -36,14 +36,7 @@ object Curl {
 
   def get(url: String): Either[Throwable, Json] =
     usingHttpConn(url) { httpConn => () }
-//
-//  private def authHeader =
-//    Array(
-//      ("accept", "application/json"),
-//      ("api_key", apiKey),
-//      ("Content-Type", "application/json")
-//    )
-//
+
   def post(url: String, body: String, additionalHeaders: Map[String, String] = Map()): Either[Throwable, Json] =
     usingHttpConn(url) { httpConn =>
       httpConn.setRequestMethod("POST")

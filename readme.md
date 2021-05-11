@@ -1,8 +1,20 @@
 # JSON dApp Environment (JDE)
 
-JDE is a tool for interfacing with dApps on the Ergo blockchain. 
+JDE can be thought of as a "Programmable" transaction builder for the Ergo blockchain, with JSON being the programming language.
+JDE is primarily intended for developers.
 
-### What is it?
+### What can it do?
+
+Recall that in an Ergo dApp, building a transaction usually involves a combination of the following tasks:
+1. Get some unspent boxes from the blockchain with some specific properties (such as with a given address and/or containing a given NFT)
+2. Extract data from those boxes (tokens, registers) and compute some values using the data.
+3. Define output boxes from the above data and create a transaction request to get an unsigned transaction.
+4. Use a wallet software (such as the Ergo node) to sign the transaction.
+ 
+JDE is designed for Steps 1-3. There is also a connector for Ergo node to perform Step 4.
+
+### What can it be compared to? 
+
 JDE is similar to [Ergo-AppKit](https://github.com/ergoplatform/ergo-appkit) and the [Headless dApp Framework (HDF)](https://github.com/Emurgo/ergo-headless-dapp-framework) in that all three are tools to interact with the Ergo blockchain. 
 Developers can use these tools to read data from the blockchain, compute using that data and optionally create transactions to be
 broadcast. Each tool requires the developer to "program" in some language. 
@@ -11,11 +23,11 @@ Users of AppKit will usually write Scala code (although AppKit supports many oth
 JDE users will have to write JSON, which has arguably the easiest to learn of the three. The downside of using JSON is that JDE scripts are more
 verbose than the other two languages. For example, the JDE equivalent of Scala's `a = b + c` is `{"name":"a", "left":"b", "op":"add", "right":"c"}`.
 
-JDE is not intended for non-tech users. 
+The folder [sample-scripts](/sample-scripts) contains some sample JDE programs.
 
-### Capabilities
+### Core Capabilities
 
-JDE can be used for any of the following tasks: 
+The following are the core capabilities of JDE: 
 
 1. Reading data from the blockchain. As an example we could use JDE to get the following data:
    
@@ -34,54 +46,117 @@ JDE can be used for any of the following tasks:
 3. Create a *Transaction Template* for a transaction using the above values such as one for minting some Sigma-USD reserve coins.
    
 
-#### Transaction Template   
-A transaction template is like an unsigned transaction with the difference that while an unsigned transaction is *complete* in the sense that it contains *all* the inputs, outputs and data-inputs of the final transaction, a template contains only a subset of this data. In particular, it contains:
-   
-   1. The boxIds of inputs to be used.
-       
-   2. The boxIds of data-inputs to be used.
-       
-   3. Outputs to be created (encoded in the same way that the Ergo node understands).
+### Transaction Template
 
-   4. The total tokens and Ergs contained in the inputs for the selected boxIds.
+An Ergo **unsigned transaction** (UT) is a tuple **(inputs, data-inputs, outputs)** such that the following hold:
+- The sum of nano-ergs is the inputs is exactly the same as the sum of the nano-ergs in the outputs.
+- The sum of tokens in the inputs is same or greater than the sum of tokens in the outputs. 
+- There is a fee output box
 
-   5. The total tokens and Ergs needed for the outputs that are created.
-   
-JDE does not ensure that the input and output Ergs/tokens are conserved. In fact, most of the time the input Ergs could be falling short,
-and it is up to the user (or the wallet software) to make up and make the transaction complete by adding more inputs 
-(and possibly a change output if the wallet does not automatically add one). An example of using this information to create a
-complete transaction is in the [KioskWeb wallet](https://github.com/scalahub/KioskWeb/blob/main/src/main/scala/kiosk/wallet/KioskWallet.scala#L124).
+For brevity, we represent boxes using boxIds. 
+Thus, a UT is a tuple **(input-boxIds, data-input-boxIds, outputs)** such that the above conditions hold.
+
+A **transaction template** (TT) is similar to an unsigned transaction in that it is also a tuple **(input-boxIds, data-input-boxIds, outputs)**. 
+However, none of the above conditions are required to hold in a TT. 
+
+For a given script, JDE outputs a TT along with some metadata such as the sum of nano-ergs and tokens in the inputs and outputs.
+In particular, JDE does not ensure that the input and output nano-ergs/tokens are conserved.
+The metadata can be used by the wallet software to create a UT from the TT by adding a fee output and optional funding and change outputs.
+An example of this is in the [KioskWeb wallet](https://github.com/scalahub/KioskWeb/blob/main/src/main/scala/kiosk/wallet/KioskWallet.scala#L124).
+
+On the other hand, we can also write JDE scripts where the output TT is also a UT (by specifying funding, change and fee outputs in the script itself). 
+In this case, the TT can be directly used for generating the final signed transaction. 
+An example of such a script is the [advanced mint reserve-coin script](/sample-scripts/mintReserveCoinAdvanced.json).   
 
 ### Running JDE
+
+Depending on the use-case and the actual script, JDE has the following entry-points (modes).
+- **Compile**: Used to run JDE in "vanilla mode", i.e., return a TT. This is also the default mode in CLI and web-service (see below),
+- **Request**: Runs Compile mode and uses its output to create a transaction creation request. This is useful only if the TT is also a UT. This also needs access to a fully synced Ergo node.
+- **Generate**: Runs Request mode and uses its output to generate a signed transaction. This is useful only if the TT is also a UT. This also needs access to a fully synced Ergo node and its api key.
+- **Send**: Runs Generate mode and uses its output to send a signed transaction. This is useful only if the TT is also a UT. This also needs access to a fully synced Ergo node and its api key.
 
 The following instructions are for Linux and MacOS. For Windows, please adapt the instructions accordingly.
 
 - Clone the project using the command `git clone https://github.com/ergoplatform/ergo-jde.git`.
 - Ensure that you have SBT installed.
 
-Currently, there are two ways to run JDE. 
+Currently, there are two ways to run JDE: via a CLI and as a web-service. 
 
-#### CLI
+### Using CLI
 
-- Create a fat jar using the command `sbt assembly`. 
-- A jar called `jde.jar` will be created in the folder `target/scala-2.12`.
+In order to use the CLI, first create a fat jar using the command `sbt assembly`. A jar called `jde.jar` will be created in the folder `target/scala-2.12`.
 
-To run the CLI issue the command `java -jar jde.jar`. It will print instructions to invoke JDE:
+The CLI supports all 4 modes of operation, with the default being "Compile".
 
-    > java -jar jde.jar 
+- **Compile**: To run the CLI in this mode (the default) use the command `java -jar jde.jar`. It will print instructions:
+
+      Usage: java -jar jde.jar <script.json>
     
-    Usage java -jar <jarFile> <script.json>
+   The first parameter is the file with the JSON script. 
+  
+   As example usage of this command is: 
+      
+      java -jar jde.jar getStableCoinInfo.json 
 
-The second parameter contains the file with the JSON script. The folder `/sample-scripts` contains some sample JDE programs.  
-As an example the following command will return information about the SigmaUSD stablecoin (such as the current rate). 
+   Notes: 
+    - Ensure that both the jar and json files are in the current directory)
+    - The file `getStableCoinInfo.json` is present in the [sample-scripts](/sample-scripts) folder.
+    - The script is designed to return information about the SigmaUSD stable-coin (such as the current rate).
+   
+   The above command should return the same data as that returned in the web-service example below.
 
-    java -jar jde.jar getStableCoinInfo.json
 
-The above command should return the same data as in the web-service example below (ensure that both the jar and json files are in the current directory).
+- **Request**: To run the CLI in this mode use the command `java -cp jde.jar cli.Request`. It will print instructions:
 
-#### Web Service
+      Usage: java -cp jde.jar cli.Request <script.json> <ergo-node-url>
 
-JDE web-service can be run in two ways. 
+   - The first parameter is the file with the JSON script.
+   - The second parameter is the full base-url of the node.
+   - This requires the TT output by the script to be a UT, otherwise an error is thrown.
+   
+   An example usage of this command is:
+
+      java -cp jde.jar cli.Request mintReserveCoinAdvanced.json http://192.168.0.200:9053
+
+   The above command will return a transaction request to be sent to the node.
+
+
+- **Generate**: To run the CLI in this mode use the command `java -cp jde.jar cli.Generate`. It will print instructions:
+
+      Usage: java -cp jde.jar cli.Generate <script.json> <ergo-node-url> <api-key>
+
+   - The first parameter is the file with the JSON script.  
+   - The second parameter is the full base-url of the node.
+   - The third parameter is the api-key of the node.
+   - This requires the TT output by the script to be a UT, otherwise an error is thrown.
+    
+   An example usage of this command is:
+ 
+      java -cp jde.jar cli.Generate mintReserveCoinAdvanced.json http://192.168.0.200:9053 hello
+
+   The above command will return a signed transaction ready to be broadcast.
+
+
+- **Send**: To run the CLI in this mode use the command `java -cp jde.jar cli.Send`. It will print instructions:
+
+      Usage: java -cp jde.jar cli.Send <script.json> <ergo-node-url> <api-key>
+
+   - The first parameter is the file with the JSON script.
+   - The second parameter is the full base-url of the node.
+   - The third parameter is the api-key of the node.
+   - This requires the TT output by the script to be a UT, otherwise an error is thrown.
+   
+   An example usage of this command is:
+
+      java -cp jde.jar cli.Send mintReserveCoinAdvanced.json http://192.168.0.200:9053 hello
+
+   The above command will broadcast the transaction and print the transaction id.
+
+### Using the web service
+
+Unlike the CLI, the web service currently only supports the **Compile** mode. 
+The web-service can be run in two ways. 
 
 1. Using the embedded web-server (Jetty): This is the easiest way and should be used for development mode. 
    
@@ -93,9 +168,12 @@ JDE web-service can be run in two ways.
    - Generate the war file using the command `sbt package`. The war file will be created in `target/scala-2.12` folder. 
    - This file can be run under any standard J2EE web server. The service will start listening on the port configured in the web-server
 
-In both cases the endpoint `/compile` will be exposed for sending requests.
+In both cases the endpoint `/compile` will be exposed for sending requests. The endpoint accepts both GET and POST requests 
+where the body contains the script code. The following shows how to call the POST endpoint using cURL. 
 
-The following is the output of the command `curl --data @sample-scripts/getStableCoinInfo.json http://localhost:8080/compile`
+    curl --data @sample-scripts/getStableCoinInfo.json http://localhost:8080/compile
+
+The following is a sample response from the above call:
 
 ```
 {
@@ -110,11 +188,11 @@ The following is the output of the command `curl --data @sample-scripts/getStabl
   } ]
 }
 ```
-The above snippet shows the current reserve ratio of the bank along with the current stablecoin rate in nanoErgs. 
+The above returns the current reserve ratio of the SigmaUSD bank along with the current stable-coin rate. 
 
-### Programming JDE
+### Writing JDE Scripts
 
-A user interacts with JDE using a structure called a *Program*, a JSON-encoded script defining the following primary components:
+A user interacts with JDE using a structure called a *Program* ([source](/jde/src/main/scala/jde/compiler/model/External.scala#L17)), a JSON-encoded script defining the following primary components:
 
 1. Inputs: These contain instructions to search for boxes that will form the inputs of the transaction.
 2. Data-Inputs: These contain instructions to search for boxes that will form the data-inputs of the transaction.
@@ -145,6 +223,6 @@ Unspent boxes can be searched by address and/or box-id. With box-id, there can b
    - The first box (if any) is selected as the matched box. If the `multi` flag is set then all boxes are selected.
 - An error is thrown if no boxes match a definition, unless the `optional` flag is set.
 
-The folder `/sample-scripts` contains several sample JDE programs. The [tests](/jde/src/test/scala/jde) contain more examples. 
+The folder [sample-scripts](/sample-scripts) contains several sample JDE programs. The [tests](/jde/src/test/scala/jde) contain more examples. 
 
-See [this document](/syntax.md) for the syntax of JDE programs.
+See [this document](/syntax.md) for the detailed semantics of JDE programs.
