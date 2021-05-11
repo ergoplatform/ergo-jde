@@ -20,7 +20,7 @@ Developers can use these tools to read data from the blockchain, compute using t
 broadcast. Each tool requires the developer to "program" in some language. 
 
 Users of AppKit will usually write Scala code (although AppKit supports many other languages). HDF users will need to write Rust code. 
-JDE users will have to write JSON, which has arguably the easiest to learn of the three. The downside of using JSON is that JDE scripts are more
+JDE users will have to write JSON, which is arguably the easiest to learn of the three. The downside of using JSON is that JDE scripts are more
 verbose than the other two languages. For example, the JDE equivalent of Scala's `a = b + c` is `{"name":"a", "left":"b", "op":"add", "right":"c"}`.
 
 The folder [sample-scripts](/sample-scripts) contains some sample JDE programs.
