@@ -49,7 +49,7 @@ The following are the core capabilities of JDE:
 ### Transaction Template
 
 An Ergo **unsigned transaction** (UT) is a tuple **(inputs, data-inputs, outputs)** such that the following hold:
-- The sum of nano-ergs is the inputs is exactly the same as the sum of the nano-ergs in the outputs.
+- The sum of nano-ergs in the inputs is exactly the same as the sum of the nano-ergs in the outputs.
 - The sum of tokens in the inputs is same or greater than the sum of tokens in the outputs. 
 - There is a fee output box
 
