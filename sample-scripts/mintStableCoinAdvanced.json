@@ -3,7 +3,7 @@
     {
       "name": "myAddress",
       "type": "Address",
-      "value": "9hz1B19M44TNpmVe8MS4xvXyycehh5uP5aCfj4a6iAowj88hkd2"
+      "value": "9fPRvaMYzBPotu6NGvZn4A6N4J2jDmRGs4Zwc9UhFFeSXgRJ8pS"
     },
     {
       "name": "oraclePoolNFT",
@@ -62,6 +62,16 @@
       "name": "receiptBoxValue",
       "type": "Long",
       "value": "10000000"
+    },
+    {
+      "name": "minReserveRatioPercent",
+      "type": "Long",
+      "value": "400"
+    },
+    {
+      "name": "defaultMaxReserveRatioPercent",
+      "type": "Long",
+      "value": "800"
     },
     {
       "name": "txFee",
@@ -289,9 +299,37 @@
         "second": "0",
         "op": "Lt"
       }
+    },
+    {
+      "name": "reserveRatioPercentOut",
+      "ifTrue": "defaultMaxReserveRatioPercent",
+      "ifFalse": "bcReserveOut * 100 / bcReserveNeededOut",
+      "condition": {
+        "first": "bcReserveNeededOut",
+        "second": "0",
+        "op": "Eq"
+      }
     }
   ],
   "binaryOps": [
+    {
+      "name": "bcReserveOut * 100 / bcReserveNeededOut",
+      "first": "bcReserveOut * 100",
+      "op": "Div",
+      "second": "bcReserveNeededOut"
+    },
+    {
+      "name": "bcReserveOut * 100",
+      "first": "bcReserveOut",
+      "op": "Mul",
+      "second": "100"
+    },
+    {
+      "name": "bcReserveNeededOut",
+      "first": "rate",
+      "op": "Mul",
+      "second": "scCircOut"
+    },
     {
       "name": "scTokenOut",
       "first": "scTokenIn",
@@ -393,6 +431,13 @@
       "first": "myNanoErgs",
       "op": "Sub",
       "second": "nanoErgsUsed"
+    }
+  ],
+  "postConditions": [
+    {
+      "first": "reserveRatioPercentOut",
+      "second": "minReserveRatioPercent",
+      "op": "Ge"
     }
   ],
   "returns": [

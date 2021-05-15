@@ -62,6 +62,16 @@
       "name": "minStorageRent",
       "type": "Long",
       "value": "10000000"
+    },
+    {
+      "name": "minReserveRatioPercent",
+      "type": "Long",
+      "value": "400"
+    },
+    {
+      "name": "defaultMaxReserveRatioPercent",
+      "type": "Long",
+      "value": "800"
     }
   ],
   "dataInputs": [
@@ -243,9 +253,37 @@
         "second": "0",
         "op": "Lt"
       }
+    },
+    {
+      "name": "reserveRatioPercentOut",
+      "ifTrue": "defaultMaxReserveRatioPercent",
+      "ifFalse": "bcReserveOut * 100 / bcReserveNeededOut",
+      "condition": {
+        "first": "bcReserveNeededOut",
+        "second": "0",
+        "op": "Eq"
+      }
     }
   ],
   "binaryOps": [
+    {
+      "name": "bcReserveOut * 100 / bcReserveNeededOut",
+      "first": "bcReserveOut * 100",
+      "op": "Div",
+      "second": "bcReserveNeededOut"
+    },
+    {
+      "name": "bcReserveOut * 100",
+      "first": "bcReserveOut",
+      "op": "Mul",
+      "second": "100"
+    },
+    {
+      "name": "bcReserveNeededOut",
+      "first": "rate",
+      "op": "Mul",
+      "second": "scCircOut"
+    },
     {
       "name": "scTokenOut",
       "first": "scTokenIn",
@@ -317,6 +355,13 @@
       "first": "bcReserveIn",
       "op": "Add",
       "second": "bcDeltaWithFee"
+    }
+  ],
+  "postConditions": [
+    {
+      "first": "reserveRatioPercentOut",
+      "second": "minReserveRatioPercent",
+      "op": "Ge"
     }
   ],
   "fee": 2000000,

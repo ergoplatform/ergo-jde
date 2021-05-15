@@ -6,7 +6,12 @@ import play.api.libs.json.Json
 
 class WalletUtil(ergoNode: ErgoNode) {
   private def getBoxesRaw(ids: Seq[String]): Seq[String] =
-    ids.map { id => ergoNode.getBoxRaw(id).getOrElse(throw new Exception(s"Unable to get box with id $id")) }
+    ids.map { id =>
+      ergoNode.getBoxRaw(id) match {
+        case Right(box) => box
+        case Left(ex)   => throw ex
+      }
+    }
 
   private def toTokenRequest(token: Token) = {
     val (id, amount) = token

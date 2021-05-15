@@ -29,7 +29,6 @@ object ScriptUtil {
     import sigmastate.lang.Terms._
     implicit val irContext = new CompiletimeIRContext
     compiler.compile(env.mapValues(_.value), ergoScript).asSigmaProp
-    // old  .compile(env.mapValues(_.value), ergoScript).asInstanceOf[Value[SBoolean.type]].toSigmaProp
   }
 
   implicit def mapToBetterMMap(map: MMap[String, KioskType[_]]) = BetterMMap(map)

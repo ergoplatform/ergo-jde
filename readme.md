@@ -6,7 +6,7 @@ JDE is primarily intended for developers.
 ### What can it do?
 
 Recall that in an Ergo dApp, building a transaction usually involves a combination of the following tasks:
-1. Get some unspent boxes from the blockchain with some specific properties (such as with a given address and/or containing a given NFT)
+1. Get some unspent boxes from the blockchain with some specific properties (such as with a given address and/or containing a given NFT).
 2. Extract data from those boxes (tokens, registers) and compute some values using the data.
 3. Define output boxes from the above data and create a transaction request to get an unsigned transaction.
 4. Use a wallet software (such as the Ergo node) to sign the transaction.
@@ -24,6 +24,24 @@ JDE users will have to write JSON, which is arguably the easiest to learn of the
 verbose than the other two languages. For example, the JDE equivalent of Scala's `a = b + c` is `{"name":"a", "left":"b", "op":"add", "right":"c"}`.
 
 The folder [sample-scripts](/sample-scripts) contains some sample JDE programs.
+
+### Example: Minting Reserve Coins
+The following steps will explain how to mint Sigma USD reserve coins.
+
+- Clone the project using the command `git clone https://github.com/ergoplatform/ergo-jde.git`.
+- Ensure that you have Java and SBT installed and give the command `sbt assembly`. A jar called `jde.jar` will be created in `target/scala-2.12` folder.
+- Edit the file [sample-scripts/mintReserveCoinAdvanced.json](/sample-scripts/mintReserveCoinAdvanced.json):
+   - Replace `myAddress` constant with your own address.
+   - If needed, change the value of `rcCircDelta` to the number of reserve-coins to be minted.  
+
+- You will need access to the Ergo node controlling `myAddress` along with the password. 
+- Assume that the node address is `http://192.168.1.123:9053` and the password is `hello`, then run the following command (replacing with your own values):
+    
+  `java -cp target/scala-2.12/jde.jar cli.Send sample-scripts/mintReserveCoinAdvanced.json http://192.168.1.123:9053 hello` 
+
+This will send the mint transaction and print the transaction id. 
+
+For minting stable coins, use the script [sample-scripts/mintStableCoinAdvanced.json](/sample-scripts/mintStableCoinAdvanced.json). 
 
 ### Core Capabilities
 
@@ -76,12 +94,9 @@ Depending on the use-case and the actual script, JDE has the following entry-poi
 - **Generate**: Runs Request mode and uses its output to generate a signed transaction. This is useful only if the TT is also a UT. This also needs access to a fully synced Ergo node and its api key.
 - **Send**: Runs Generate mode and uses its output to send a signed transaction. This is useful only if the TT is also a UT. This also needs access to a fully synced Ergo node and its api key.
 
-The following instructions are for Linux and MacOS. For Windows, please adapt the instructions accordingly.
-
-- Clone the project using the command `git clone https://github.com/ergoplatform/ergo-jde.git`.
-- Ensure that you have SBT installed.
-
 Currently, there are two ways to run JDE: via a CLI and as a web-service. 
+
+Before going further, ensure you have cloned the repo using `git clone https://github.com/ergoplatform/ergo-jde.git` and have Java and SBT installed.
 
 ### Using CLI
 

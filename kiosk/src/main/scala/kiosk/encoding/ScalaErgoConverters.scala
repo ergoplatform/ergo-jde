@@ -31,7 +31,8 @@ object ScalaErgoConverters {
 
   def getStringFromAddress(ergoAddress: ErgoAddress): String = ScriptUtil.ergoAddressEncoder.toString(ergoAddress)
 
-  def getAddressFromString(string: String) = Try(ScriptUtil.ergoAddressEncoder.fromString(string).get).getOrElse(throw new Exception(s"Invalid address [$string]"))
+  def getAddressFromString(string: String) =
+    Try(ScriptUtil.ergoAddressEncoder.fromString(string).get).getOrElse(throw new Exception(s"Invalid address [$string]"))
 
   def deserialize(hex: String): KioskType[_] = {
     val bytes = hex.decodeHex
@@ -42,10 +43,11 @@ object ScalaErgoConverters {
       case ConstantNode(i, SBigInt) =>
         val bigInteger: BigInteger = i.asInstanceOf[BigInt]
         KioskBigInt(scala.BigInt(bigInteger))
-      case ConstantNode(l, SLong)             => KioskLong(l.asInstanceOf[Long])
-      case ConstantNode(c, _: SCollection[_]) => KioskCollByte(c.asInstanceOf[Coll[Byte]].toArray)
-      case ConstantNode(i, SInt)              => KioskInt(i.asInstanceOf[Int])
-      case any                                => throw new Exception(s"Unsupported encoded data $hex (decoded as $any)")
+      case ConstantNode(l, SLong) => KioskLong(l.asInstanceOf[Long])
+      case ConstantNode(c, _: SCollection[_]) =>
+        KioskCollByte(c.asInstanceOf[Coll[Byte]].toArray) // ToDo: handle other collections such as Coll[Coll[Byte]]
+      case ConstantNode(i, SInt) => KioskInt(i.asInstanceOf[Int])
+      case any                   => throw new Exception(s"Unsupported encoded data $hex (decoded as $any)")
     }
   }
 }
