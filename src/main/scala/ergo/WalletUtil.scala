@@ -71,18 +71,14 @@ class WalletUtil(ergoNode: ErgoNode) {
   def generateTx(compileResult: CompileResult) = {
     ergoNode.generate(getRequest(compileResult)) match {
       case Right(json) => json
-      case Left(ex) =>
-        ex.printStackTrace()
-        throw new Exception(ex)
+      case Left(ex)    => throw ex
     }
   }
 
   def sendTx(compileResult: CompileResult) = {
     ergoNode.send(getRequest(compileResult)) match {
       case Right(json) => json
-      case Left(ex) =>
-        ex.printStackTrace()
-        throw new Exception(ex)
+      case Left(ex)    => throw ex
     }
   }
 }
