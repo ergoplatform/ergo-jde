@@ -305,7 +305,7 @@ This option applies to tokens only.
 ### Order of evaluation
 Declarations are evaluated in the following order:
 - Constants
-- Computation boxes (`boxes`)  (from low to high index)
+- Auxiliary boxes (`auxInputs`)  (from low to high index)
 - Data-input boxes (from low to high index)
 - Input boxes (from low to high index)
 - Post-conditions
