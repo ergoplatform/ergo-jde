@@ -62,3 +62,17 @@ lazy val root = Project("ErgoJDE", file("."))
   )
 
 enablePlugins(JettyPlugin)
+
+// prefix version with "-SNAPSHOT" for builds without a git tag
+dynverSonatypeSnapshots in ThisBuild := true
+// use "-" instead of default "+"
+dynverSeparator in ThisBuild := "-"
+
+// PGP key for signing a release build published to sonatype
+// signing is done by sbt-pgp plugin
+// how to generate a key - https://central.sonatype.org/pages/working-with-pgp-signatures.html
+// how to export a key and use it with Travis - https://docs.scala-lang.org/overviews/contributors/index.html#export-your-pgp-key-pair
+pgpPublicRing := file("ci/pubring.asc")
+pgpSecretRing := file("ci/secring.asc")
+pgpPassphrase := sys.env.get("PGP_PASSPHRASE").map(_.toArray)
+usePgpKeyHex("28E27A67AEA38DA458C72228CA9254B5E0640FE4")

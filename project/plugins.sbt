@@ -1,2 +1,5 @@
 addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.15.0")
 addSbtPlugin("com.earldouglas" % "xsbt-web-plugin" % "4.0.2")
+addSbtPlugin("org.xerial.sbt" % "sbt-sonatype" % "3.9.5")
+addSbtPlugin("com.jsuereth" % "sbt-pgp" % "2.0.0")
+addSbtPlugin("com.dwijnand" % "sbt-dynver" % "4.1.1")
