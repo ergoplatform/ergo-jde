@@ -92,7 +92,8 @@ case class KioskBox(
     registers: Array[KioskType[_]],
     tokens: Tokens,
     optBoxId: Option[String] = None,
-    spentTxId: Option[String] = None
+    spentTxId: Option[String] = None,
+    creationHeight: Option[Int] = None
 ) {
   def toOutBox(implicit ctx: BlockchainContext): OutBox = {
     ctx
@@ -101,6 +102,7 @@ case class KioskBox(
       .value(value)
       .tokens(tokens.map(token => new ErgoToken(token._1, token._2)): _*)
       .contract(ctx.newContract(ScalaErgoConverters.getAddressFromString(address).script))
+      .creationHeight(creationHeight.getOrElse(ctx.getHeight))
       .registers(registers.map(register => register.getErgoValue): _*)
       .build()
   }

@@ -27,19 +27,22 @@ object TxUtil {
     }
   }
 
-  def createTx(inputBoxes: Array[InputBox],
-               dataInputs: Array[InputBox],
-               boxesToCreate: Array[KioskBox],
-               fee: Long,
-               changeAddress: String,
-               proveDlogSecrets: Array[String],
-               dhtData: Array[DhtData],
-               broadcast: Boolean)(implicit ctx: BlockchainContext): SignedTransaction = {
+  def createTx(
+      inputBoxes: Array[InputBox],
+      dataInputs: Array[InputBox],
+      boxesToCreate: Array[KioskBox],
+      fee: Long,
+      changeAddress: String,
+      proveDlogSecrets: Array[String],
+      dhtData: Array[DhtData],
+      broadcast: Boolean
+  )(implicit ctx: BlockchainContext): SignedTransaction = {
     val txB = ctx.newTxBuilder
     val outputBoxes: Array[OutBox] = boxesToCreate.map { box =>
       val outBoxBuilder: OutBoxBuilder = txB
         .outBoxBuilder()
         .value(box.value)
+        .creationHeight(box.creationHeight.getOrElse(ctx.getHeight))
         .contract(
           new ErgoTreeContract(getAddressFromString(box.address).script)
         )
