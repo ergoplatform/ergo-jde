@@ -5,7 +5,7 @@ import org.ergoplatform.ErgoAddressEncoder
 import org.ergoplatform.ErgoAddressEncoder.MainnetNetworkPrefix
 import sigmastate.Values.ErgoTree
 import sigmastate.eval.CompiletimeIRContext
-import sigmastate.lang.SigmaCompiler
+import sigmastate.lang.{CompilerSettings, SigmaCompiler, TransformingSigmaBuilder}
 import special.sigma.GroupElement
 
 import scala.collection.mutable.{Map => MMap}
@@ -13,7 +13,7 @@ import scala.collection.mutable.{Map => MMap}
 object ScriptUtil {
 
   val networkPrefix = MainnetNetworkPrefix
-  private val compiler = SigmaCompiler(networkPrefix)
+  private val compiler = SigmaCompiler(CompilerSettings(networkPrefix, TransformingSigmaBuilder, lowerMethodCalls = true))
 
   implicit val ergoAddressEncoder: ErgoAddressEncoder = new ErgoAddressEncoder(networkPrefix)
 

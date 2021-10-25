@@ -22,7 +22,7 @@ updateOptions := updateOptions.value.withLatestSnapshots(false)
 lazy val commonDependencies = libraryDependencies ++= Seq(
   "org.scala-lang.modules" %% "scala-collection-compat" % "2.1.3",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.+",
-  "org.ergoplatform" %% "ergo-appkit" % "develop-dd40e4e5-SNAPSHOT",
+  "org.ergoplatform" %% "ergo-appkit" % "4f97db0a-SNAPSHOT",
   "com.squareup.okhttp3" % "mockwebserver" % "3.14.9" % Test,
   "org.scalatest" %% "scalatest" % "3.0.8" % Test,
   "org.scalacheck" %% "scalacheck" % "1.14.+" % Test,
