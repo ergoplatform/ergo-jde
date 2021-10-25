@@ -11,18 +11,18 @@ ThisBuild / scalacOptions ++= Seq(
   "-unchecked"
 )
 
-resolvers ++= Seq(
+lazy val commonResolvers = resolvers ++= Seq(
   "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases/",
   "SonaType" at "https://oss.sonatype.org/content/groups/public",
-  "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
+  "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
 )
 
 updateOptions := updateOptions.value.withLatestSnapshots(false)
 
-lazy val `commonSettings`: Def.Setting[Seq[ModuleID]] = libraryDependencies ++= Seq(
+lazy val commonDependencies = libraryDependencies ++= Seq(
   "org.scala-lang.modules" %% "scala-collection-compat" % "2.1.3",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.+",
-  "org.ergoplatform" %% "ergo-appkit" % "4.0.3",
+  "org.ergoplatform" %% "ergo-appkit" % "develop-dd40e4e5-SNAPSHOT",
   "com.squareup.okhttp3" % "mockwebserver" % "3.14.9" % Test,
   "org.scalatest" %% "scalatest" % "3.0.8" % Test,
   "org.scalacheck" %% "scalacheck" % "1.14.+" % Test,
@@ -30,13 +30,15 @@ lazy val `commonSettings`: Def.Setting[Seq[ModuleID]] = libraryDependencies ++= 
 )
 
 lazy val Kiosk = Project("kiosk", file("kiosk")).settings(
-  commonSettings
+  commonResolvers,
+  commonDependencies
 )
 
 lazy val JDE = Project("jde", file("jde"))
   .dependsOn(Kiosk)
   .settings(
-    commonSettings,
+    commonResolvers,
+    commonDependencies,
     libraryDependencies ++= Seq(
       "com.typesafe.play" %% "play-json" % "2.9.2"
     )
@@ -48,7 +50,8 @@ lazy val myJarName = "jde.jar"
 lazy val root = Project("ErgoJDE", file("."))
   .dependsOn(JDE)
   .settings(
-    commonSettings,
+    commonResolvers,
+    commonDependencies,
     libraryDependencies += "javax.servlet" % "servlet-api" % "2.5" % "provided", // for servlet
     Compile / mainClass := Some(myMainClass),
     assembly / mainClass := Some(myMainClass),
