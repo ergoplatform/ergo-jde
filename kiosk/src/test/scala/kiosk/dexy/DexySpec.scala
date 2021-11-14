@@ -10,22 +10,22 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyChecks with HttpClientTesting {
 
-  val poolNFT = "472B4B6250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
+  val opNFT = "472B4B6250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val lpNFT = "361A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val emissionScript =
     s"""{ 
-       |  // this box: (dexyUSD emission box)
-       |  // tokens(0): emissionNFT identifying the box
-       |  // tokens(1): dexyUSD tokens to be emitted
+       |  // This box: (dexyUSD emission box)
+       |  //   tokens(0): emissionNFT identifying the box
+       |  //   tokens(1): dexyUSD tokens to be emitted
        |  
-       |  val poolNFT = fromBase64("${Base64.encode(poolNFT.decodeHex)}") 
+       |  val opNFT = fromBase64("${Base64.encode(opNFT.decodeHex)}") // to identify oracle pool box
        |  val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}") // to identify LP box for future use
        |  
-       |  val poolBox = CONTEXT.dataInputs(0) // oracle-pool (v1 and v2) box containing rate in R4
+       |  val opBox = CONTEXT.dataInputs(0) // oracle-pool (v1 and v2) box containing rate in R4
        |  
-       |  val validPool = poolBox.tokens(0)._1 == poolNFT
+       |  val validOP = opBox.tokens(0)._1 == opNFT
        |  
-       |  val poolRate = poolBox.R4[Long].get // can assume always > 0 (ref oracle pool contracts)
+       |  val opRate = opBox.R4[Long].get // can assume always > 0 (ref oracle pool contracts) NanoErgs per USD
        |  
        |  val selfOut = OUTPUTS(0)
        |  
@@ -41,14 +41,126 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  
        |  val deltaTokens = inTokens - outTokens // outTokens must be < inTokens (see below)
        |  
-       |  val validDelta = deltaErgs >= deltaTokens * poolRate // deltaTokens must be (+)ve, since both deltaErgs and poolRate are (+)ve
+       |  val validDelta = deltaErgs >= deltaTokens * opRate // deltaTokens must be (+)ve, since both deltaErgs and opRate are (+)ve
        |  
-       |  sigmaProp(validPool && validSelfOut && validDelta)
+       |  sigmaProp(validOP && validSelfOut && validDelta)
+       |}
+       |""".stripMargin
+
+  // below contract is adapted from N2T DEX contract in EIP-14 https://github.com/ergoplatform/eips/blob/de30f94ace1c18a9772e1dd0f65f00caf774eea3/eip-0014.md?plain=1#L558-L636
+  val lpScript =
+    s"""{
+       |    // Notation:
+       |    // 
+       |    // X is the primary token
+       |    // Y is the secondary token 
+       |    // When using Erg-USD oracle v1, X is NanoErg and Y is USD   
+       |
+       |    // This box: (LP box)
+       |    //   R1 (value): X tokens in NanoErgs 
+       |    //   R4: How many LP in circulation (long). This can be non-zero when bootstrapping, to consider the initial token burning in UniSeap v2
+       |    //   Tokens(0): LP NFT to uniquely identify NFT box. (Could we possibly do away with this?) 
+       |    //   Tokens(1): LP tokens
+       |    //   Tokens(2): Y tokens (Note that X tokens are NanoErgs (the value) 
+       |    //   
+       |    // Data Input #0: (oracle pool box)
+       |    //   R4: Rate in units of X per unit of Y
+       |    //   Token(0): OP NFT to uniquely identify Oracle Pool
+       |     
+       |    // constants 
+       |    val feeNum = 3 // 0.3 % 
+       |    val feeDenom = 1000
+       |    val minStorageRent = 10000000L  // this many number of nanoErgs are going to be permanently locked
+       |    
+       |    val successor = OUTPUTS(0) // copy of this box after exchange
+       |    val op = CONTEXT.dataInputs(0) // oracle pool box
+       |    val validOp = op.tokens(0)._1 == fromBase64("${Base64.encode(opNFT.decodeHex)}") // to idenfity oracle pool box 
+       |    
+       |    val lpNFT0    = SELF.tokens(0)
+       |    val reservedLP0 = SELF.tokens(1)
+       |    val tokenY0     = SELF.tokens(2)
+       |
+       |    val lpNFT1    = successor.tokens(0)
+       |    val reservedLP1 = successor.tokens(1)
+       |    val tokenY1     = successor.tokens(2)
+       |
+       |    val supplyLP0 = SELF.R4[Long].get       // LP tokens in circulation in input LP box
+       |    val supplyLP1 = successor.R4[Long].get  // LP tokens in circulation in output LP box
+       |
+       |    val validSuccessorScript = successor.propositionBytes == SELF.propositionBytes
+       |    
+       |    val preservedLpNFT     = lpNFT1 == lpNFT0
+       |    val validLP              = reservedLP1._1 == reservedLP0._1
+       |    val validY               = tokenY1._1 == tokenY0._1
+       |    val validSupplyLP1       = supplyLP1 >= 0
+       |       
+       |    // since tokens can be repeated, we ensure for sanity that there are no more tokens
+       |    val noMoreTokens         = successor.tokens.size == 3
+       |  
+       |    val validStorageRent     = successor.value > minStorageRent
+       |
+       |    val reservesX0 = SELF.value
+       |    val reservesY0 = tokenY0._2
+       |    val reservesX1 = successor.value
+       |    val reservesY1 = tokenY1._2
+       |
+       |    val opRateXY = op.R4[Long].get 
+       |    val lpRateXY0 = reservesX0 / reservesY0  // we can assume that reservesY0 > 0 (since at least one token must exist) 
+       |
+       |    val validRateForRedeemingLP = opRateXY > lpRateXY0 * 9 / 10 // lpRate must be >= 0.9 opRate // these parameters need to be tweaked  
+       |     
+       |    val deltaSupplyLP  = supplyLP1 - supplyLP0
+       |    val deltaReservesX = reservesX1 - reservesX0
+       |    val deltaReservesY = reservesY1 - reservesY0
+       |    
+       |    // LP formulae below using UniSwap v2 (with initial token burning by bootstrapping with positive R4)
+       |    val validDepositing = {
+       |        val sharesUnlocked = min(
+       |            deltaReservesX.toBigInt * supplyLP0 / reservesX0,
+       |            deltaReservesY.toBigInt * supplyLP0 / reservesY0
+       |        )
+       |        deltaSupplyLP <= sharesUnlocked
+       |    }
+       |
+       |    val validRedemption = {
+       |        val _deltaSupplyLP = deltaSupplyLP.toBigInt
+       |        // note: _deltaSupplyLP, deltaReservesX and deltaReservesY are negative
+       |        deltaReservesX.toBigInt * supplyLP0 >= _deltaSupplyLP * reservesX0 && deltaReservesY.toBigInt * supplyLP0 >= _deltaSupplyLP * reservesY0
+       |    } && validRateForRedeemingLP
+       |
+       |    val validSwap =
+       |        if (deltaReservesX > 0)
+       |            reservesY0.toBigInt * deltaReservesX * feeNum >= -deltaReservesY * (reservesX0.toBigInt * feeDenom + deltaReservesX * feeNum)
+       |        else
+       |            reservesX0.toBigInt * deltaReservesY * feeNum >= -deltaReservesX * (reservesY0.toBigInt * feeDenom + deltaReservesY * feeNum)
+       |
+       |    val validAction =
+       |        if (deltaSupplyLP == 0)
+       |            validSwap
+       |        else
+       |            if (deltaReservesX > 0 && deltaReservesY > 0) validDepositing
+       |            else validRedemption
+       |
+       |    sigmaProp(
+       |        validSupplyLP1 &&
+       |        validSuccessorScript &&
+       |        validOp &&
+       |        preservedLpNFT &&
+       |        validLP &&
+       |        validY &&
+       |        noMoreTokens &&
+       |        validAction && 
+       |        validStorageRent
+       |    )
        |}
        |""".stripMargin
 
   val emissionErgoTree = ScriptUtil.compile(Map(), emissionScript)
   val emissionAddress = getStringFromAddress(getAddressFromErgoTree(emissionErgoTree))
   println(emissionAddress)
+
+  val lpErgoTree = ScriptUtil.compile(Map(), lpScript)
+  val lpAddress = getStringFromAddress(getAddressFromErgoTree(lpErgoTree))
+  println(lpAddress)
 
 }
