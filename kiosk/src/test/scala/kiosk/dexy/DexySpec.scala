@@ -13,16 +13,19 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
   val oraclePoolNFT = "472B4B6250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val lpNFT = "361A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val trackingNFT = "261A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
-  val toppingNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
+  val swappingNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
+  val emissionNFT = "061A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val emissionScript =
     s"""{ 
        |  // This box: (dexyUSD emission box)
        |  //   tokens(0): emissionNFT identifying the box
        |  //   tokens(1): dexyUSD tokens to be emitted
        |  
+       |  val selfOutIndex = getVar[Int](0).get
+       |  
        |  val oraclePoolNFT = fromBase64("${Base64.encode(oraclePoolNFT.decodeHex)}") // to identify oracle pool box
        |  val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}") // to identify LP box for future use
-       |  val toppingNFT = fromBase64("${Base64.encode(trackingNFT.decodeHex)}") // to identify LP box for future use
+       |  val swappingNFT = fromBase64("${Base64.encode(trackingNFT.decodeHex)}") // to identify LP box for future use
        |  
        |  val validEmission = {
        |    val oraclePoolBox = CONTEXT.dataInputs(0) // oracle-pool (v1 and v2) box containing rate in R4
@@ -31,7 +34,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  
        |    val oraclePoolRate = oraclePoolBox.R4[Long].get // can assume always > 0 (ref oracle pool contracts) NanoErgs per USD
        |  
-       |    val selfOut = OUTPUTS(0)
+       |    val selfOut = OUTPUTS(selfOutIndex)
        |  
        |    val validSelfOut = selfOut.tokens(0) == SELF.tokens(0) && // emissionNFT and quantity preserved
        |                     selfOut.propositionBytes == SELF.propositionBytes && // script preserved
@@ -50,7 +53,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    validOP && validSelfOut && validDelta
        |  }
        |  
-       |  val validTopping = INPUTS(0).tokens(0)._1 == toppingNFT
+       |  val validTopping = INPUTS(0).tokens(0)._1 == swappingNFT
        |  
        |  sigmaProp(validEmission || validTopping)
        |}
@@ -223,6 +226,70 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |}
        |""".stripMargin
 
+  val swappingScript =
+    s"""{  
+       |  val waitingPeriod = 20 // blocks after which a trigger swap event can be completed, provided rate has not crossed oracle pool rate 
+       |  val emissionNFT = fromBase64("${Base64.encode(emissionNFT.decodeHex)}") // to identify LP box for future use
+       |  val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}") // to identify LP box for future use
+       |  val trackingNFT = fromBase64("${Base64.encode(trackingNFT.decodeHex)}") // to identify LP box for future use
+       |  val oraclePoolNFT = fromBase64("${Base64.encode(oraclePoolNFT.decodeHex)}") // to identify oracle pool box
+       |  
+       |  val thresholdPercent = 90 // 90% or less value (of LP in terms of OraclePool) will trigger action (ensure less than 100) 
+       |  
+       |  val trackingBox = CONTEXT.dataInputs(0)
+       |  val oraclePoolBox = CONTEXT.dataInputs(1)
+       |  
+       |  val lpBoxIn = INPUTS(0)
+       |  val emissionBoxIn = INPUTS(1)
+       |
+       |  val lpBoxOut = OUTPUTS(0)
+       |  val emissionBoxOut = OUTPUTS(1)
+       |  
+       |  val successor = OUTPUTS(2) // SELF should be INPUTS(2)
+       |  
+       |  val tokenYIn    = lpBoxIn.tokens(2)
+       |  val tokenYOut    = lpBoxOut.tokens(2)
+       |  
+       |  val reservesXIn = lpBoxIn.value
+       |  val reservesYIn = tokenYIn._2
+       |  
+       |  val reservesXOut = lpBoxOut.value
+       |  val reservesYOut = tokenYOut._2
+       |  
+       |  val lpRateXYIn  = reservesXIn / reservesYIn  // we can assume that reservesYIn > 0 (since at least one token must exist)
+       |  val lpRateXYOut  = reservesXOut / reservesYOut  // we can assume that reservesYOut > 0 (since at least one token must exist)
+       |  
+       |  val oraclePoolRateXY = oraclePoolBox.R4[Long].get
+       |   
+       |  val validThreshold = lpRateXYIn * 100 < thresholdPercent * oraclePoolRateXY
+       |   
+       |  val validTrackingBox = trackingBox.tokens(0)._1 == trackingNFT 
+       |  val validOraclePoolBox = oraclePoolBox.tokens(0)._1 == oraclePoolNFT 
+       |  val validLpBox = lpBoxIn.tokens(0)._1 == lpNFT
+       |  
+       |  val validSuccessor = successor.propositionBytes == SELF.propositionBytes &&
+       |                       successor.tokens == SELF.tokens &&
+       |                       successor.value == SELF.value
+       |  
+       |  val validEmissionBoxIn = emissionBoxIn.tokens(0)._1 == emissionNFT 
+       |  val validEmissionBoxOut = emissionBoxOut.tokens == emissionBoxIn.tokens 
+       |  
+       |  val deltaEmissionErgs = emissionBoxIn.value - emissionBoxOut.value
+       |
+       |  val validLpIn = lpBoxIn.R5[Int].get == trackingBox.R4[Int].get && // no change in cross-counter
+       |                  trackingBox.creationInfo._1 < HEIGHT - waitingPeriod // at least waitingPeriod blocks have passed since the tracking started
+       |                  
+       |  val ergsNeeded = 123L // ToDo use LP formula to compute the amount of Ergs needed to make rate > 5 percent more than oracle rate 
+       |  
+       |  val validSwap = lpRateXYOut * 100 >= oraclePoolRateXY * 105 &&
+       |                  deltaEmissionErgs <= ergsNeeded &&
+       |                  validEmissionBoxIn &&
+       |                  validEmissionBoxOut
+       |   
+       |  sigmaProp(validSwap)
+       |}
+       |""".stripMargin
+
   val emissionErgoTree = ScriptUtil.compile(Map(), emissionScript)
   val emissionAddress = getStringFromAddress(getAddressFromErgoTree(emissionErgoTree))
   println(emissionAddress)
@@ -234,5 +301,9 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
   val trackingErgoTree = ScriptUtil.compile(Map(), trackingScript)
   val trackingAddress = getStringFromAddress(getAddressFromErgoTree(trackingErgoTree))
   println(trackingAddress)
+
+  val swappingErgoTree = ScriptUtil.compile(Map(), swappingScript)
+  val swappingAddress = getStringFromAddress(getAddressFromErgoTree(swappingErgoTree))
+  println(swappingAddress)
 
 }
