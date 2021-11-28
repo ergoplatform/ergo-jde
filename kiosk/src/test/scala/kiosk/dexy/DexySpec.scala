@@ -272,17 +272,23 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |                       successor.value == SELF.value
        |  
        |  val validEmissionBoxIn = emissionBoxIn.tokens(0)._1 == emissionNFT 
-       |  val validEmissionBoxOut = emissionBoxOut.tokens == emissionBoxIn.tokens 
+       |  val validEmissionBoxOut = emissionBoxOut.tokens(0) == emissionBoxIn.tokens(0) &&
+       |                            emissionBoxOut.tokens(1)._1 == emissionBoxIn.tokens(1)._1
        |  
+       |  val deltaEmissionTokens =  emissionBoxOut.tokens(1)._2 - emissionBoxIn.tokens(1)._2
        |  val deltaEmissionErgs = emissionBoxIn.value - emissionBoxOut.value
+       |  val deltaLpX = reservesXOut - reservesXIn
+       |  val deltaLpY = reservesYIn - reservesYOut
        |
        |  val validLpIn = lpBoxIn.R5[Int].get == trackingBox.R4[Int].get && // no change in cross-counter
        |                  trackingBox.creationInfo._1 < HEIGHT - waitingPeriod // at least waitingPeriod blocks have passed since the tracking started
        |                  
-       |  val ergsNeeded = 123L // ToDo use LP formula to compute the amount of Ergs needed to make rate > 5 percent more than oracle rate 
+       |  val lpRateXYOutTimes100 = lpRateXYOut * 100
        |  
-       |  val validSwap = lpRateXYOut * 100 >= oraclePoolRateXY * 105 &&
-       |                  deltaEmissionErgs <= ergsNeeded &&
+       |  val validSwap = lpRateXYOutTimes100 >= oraclePoolRateXY * 105 && // new rate must be >= 1.05 times oracle rate
+       |                  lpRateXYOutTimes100 <= oraclePoolRateXY * 110 && // new rate must be <= 1.1 times oracle rate
+       |                  deltaEmissionErgs <= deltaLpX && // ergs reduced in emission box must be <= ergs gained in LP 
+       |                  deltaEmissionTokens >= deltaLpY && // tokens gained in emission box must be >= tokens reduced in LP 
        |                  validEmissionBoxIn &&
        |                  validEmissionBoxOut
        |   
