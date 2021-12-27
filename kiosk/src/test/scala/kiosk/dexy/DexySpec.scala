@@ -24,7 +24,6 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  val selfOutIndex = getVar[Int](0).get
        |  
        |  val oraclePoolNFT = fromBase64("${Base64.encode(oraclePoolNFT.decodeHex)}") // to identify oracle pool box
-       |  val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}") // to identify LP box for future use
        |  val swappingNFT = fromBase64("${Base64.encode(trackingNFT.decodeHex)}") // to identify LP box for future use
        |  
        |  val validEmission = {
@@ -70,7 +69,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |
        |    // This box: (LP box)
        |    //   R1 (value): X tokens in NanoErgs 
-       |    //   R4: How many LP in circulation (long). This can be non-zero when bootstrapping, to consider the initial token burning in UniSeap v2
+       |    //   R4: How many LP in circulation (long). This can be non-zero when bootstrapping, to consider the initial token burning in UniSwap v2
        |    //   R5: Cross-counter. A counter to track how many times the rate has "crossed" the oracle pool rate. That is the oracle pool rate falls in between the before and after rates
        |    //   Tokens(0): LP NFT to uniquely identify NFT box. (Could we possibly do away with this?) 
        |    //   Tokens(1): LP tokens
@@ -218,11 +217,13 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  val validTracking = successor.R4[Int].get == crossCounter &&
        |                      successor.creationInfo._1 > (HEIGHT - errorMargin)
        |   
-       |  sigmaProp(
-       |    validThreshold &&
-       |    validSuccessor &&
-       |    validTracking
-       |  )
+       |    sigmaProp(
+       |      validLpBox &&
+       |      validOraclePoolBox && 
+       |      validThreshold &&
+       |      validSuccessor &&
+       |      validTracking
+       |     )
        |}
        |""".stripMargin
 
@@ -290,7 +291,13 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |                  deltaEmissionErgs <= deltaLpX && // ergs reduced in emission box must be <= ergs gained in LP 
        |                  deltaEmissionTokens >= deltaLpY && // tokens gained in emission box must be >= tokens reduced in LP 
        |                  validEmissionBoxIn &&
-       |                  validEmissionBoxOut
+       |                  validEmissionBoxOut &&
+       |                  validSuccessor &&
+       |                  validLpBox &&
+       |                  validOraclePoolBox &&
+       |                  validTrackingBox &&
+       |                  validThreshold &&
+       |                  validLpIn
        |   
        |  sigmaProp(validSwap)
        |}
