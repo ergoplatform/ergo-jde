@@ -24,7 +24,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  val selfOutIndex = getVar[Int](0).get
        |  
        |  val oraclePoolNFT = fromBase64("${Base64.encode(oraclePoolNFT.decodeHex)}") // to identify oracle pool box
-       |  val swappingNFT = fromBase64("${Base64.encode(trackingNFT.decodeHex)}") // to identify LP box for future use
+       |  val swappingNFT = fromBase64("${Base64.encode(swappingNFT.decodeHex)}") // to identify swapping box for future use
        |  
        |  val validEmission = {
        |    val oraclePoolBox = CONTEXT.dataInputs(0) // oracle-pool (v1 and v2) box containing rate in R4
@@ -237,8 +237,8 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  
        |  val thresholdPercent = 90 // 90% or less value (of LP in terms of OraclePool) will trigger action (ensure less than 100) 
        |  
-       |  val trackingBox = CONTEXT.dataInputs(0)
-       |  val oraclePoolBox = CONTEXT.dataInputs(1)
+       |  val oraclePoolBox = CONTEXT.dataInputs(0)
+       |  val trackingBox = CONTEXT.dataInputs(1)
        |  
        |  val lpBoxIn = INPUTS(0)
        |  val emissionBoxIn = INPUTS(1)
