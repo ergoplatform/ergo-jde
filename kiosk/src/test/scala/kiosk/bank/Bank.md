@@ -22,28 +22,27 @@ For such a withdrawal to be valid, users must also prove that the withdraw-tree 
 
 ## Box structure
 
-The bank box has the following structure
+The bank box has the following structure:
 
 Tokens:
-1. Bank NFT to identify bank
-2. Token **T** in quantity **x**
+1. Bank NFT to identify bank.
+2. Token **T** in quantity **x**.
 
 Registers:
 1. R3: The creation height, which should be within an error margin of the actual mining height.
-2. R4: Root hash of the bank ledger tree 
-3. R5: Root hash of the withdraw-tree (initially empty)
-4. R6: GroupElement (bank pub key)
-5. R7: Boolean indicating if the bank is defunct
+2. R4: Root hash of the bank ledger tree. 
+3. R5: GroupElement (bank pub key).
+4. R6: Boolean indicating if the bank is defunct.
 
 Value: 
 Minimum value to keep box from being garbage collected.
 
 Script:
-1. Creation height must be within an error margin of HEIGHT
+1. Creation height must be within an error margin of HEIGHT.
 2. If current height is more than 1000 of creation height, box can be taken into **defunct**-mode by anyone who can prove membership in the tree. 
 3. If the box is not in defunct-mode, bank public key can update: R3 (creation height), R4 (root of ledger) and balance of **T** tokens.
-5. Once box is in defunct-mode, only withdraws are allowed.
-4. During withdraw, user must prove membership in ledger tree as well as non-membership in withdraw-tree. Additionally, that public key must also be inserted into the withdraw-tree.
+5. Once box is in defunct-mode, only withdraws are allowed as per the following rule.
+4. During withdraw, user must prove membership in ledger tree as well as prove removal of the outgoing ledger tree.
 
 
 
