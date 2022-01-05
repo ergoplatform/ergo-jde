@@ -54,9 +54,10 @@ object BankSpec extends App {
        |      val lookupProof = getVar[Coll[Byte]](1).get
        |      val withdrawIndex = getVar[Int](2).get
        |      
-       |      val userBalance = byteArrayToLong(inLedgerTree.get(withdrawKey, lookupProof).get)
+       |      val withdrawAmtCollByte = inLedgerTree.get(withdrawKey, lookupProof).get
+       |      val userBalance = byteArrayToLong(withdrawAmtCollByte)
        |      
-       |      val removedTree = outLedgerTree.remove(Coll(withdrawKey, removeProof), removeProof).get
+       |      val removedTree = outLedgerTree.remove(Coll(withdrawKey), removeProof).get
        |        
        |      val correctAmount = withdrawValue == userBalance
        |      val correctBalance = out.tokens(1)._2 == SELF.tokens(1)._2 - withdrawValue 
