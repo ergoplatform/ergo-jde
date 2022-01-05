@@ -17,8 +17,7 @@ Each user is assumed to know the entire tree and can easily verify that the box 
 
 If the bank disappears for a while and no update has been posted for 1000 blocks, the bank is considered **defunct**, and users
 can directly withdraw the tokens from **B** by proving membership in the tree. 
-During this operation, the user must add their public key to another **withdraw**-tree maintained in the same box. 
-For such a withdrawal to be valid, users must also prove that the withdraw-tree does not contain their public key.
+During this operation, the user must prove that their public key exists in the ledger and then remove this key.
 
 ## Box structure
 
@@ -26,7 +25,7 @@ The bank box has the following structure:
 
 Tokens:
 1. Bank NFT to identify bank.
-2. Token **T** in quantity **x**.
+2. Token **T** in quantity **x** + 1.
 
 Registers:
 1. R3: The creation height, which should be within an error margin of the actual mining height.
