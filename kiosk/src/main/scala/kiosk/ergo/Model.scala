@@ -3,14 +3,15 @@ package kiosk.ergo
 import kiosk.encoding.ScalaErgoConverters
 import org.bouncycastle.util.encoders.Hex
 import org.ergoplatform.appkit.{BlockchainContext, ErgoToken, ErgoType, ErgoValue, InputBox, OutBox}
-import sigmastate.SGroupElement
-import sigmastate.Values.{ByteArrayConstant, CollectionConstant, ErgoTree}
+import scorex.crypto.authds.ADDigest
+import sigmastate.{AvlTreeData, AvlTreeFlags, SGroupElement}
+import sigmastate.Values.{ByteArrayConstant, CollectionConstant, ErgoTree, SigmaBoolean}
 import sigmastate.eval.SigmaDsl
 import sigmastate.serialization.ErgoTreeSerializer.DefaultSerializer
 import sigmastate.serialization.ValueSerializer
 import special.collection.Coll
 import special.sigma
-import special.sigma.GroupElement
+import special.sigma.{AvlTree, GroupElement, SigmaPropRType}
 
 class BetterString(string: String) {
   def decodeHex = Hex.decode(string)
@@ -37,6 +38,14 @@ case class KioskCollByte(arrayBytes: Array[Byte]) extends KioskType[Coll[Byte]] 
   override def toString: String = stringValue
   override val typeName: String = "Coll[Byte]"
   override def getErgoValue = ErgoValue.of(arrayBytes)
+}
+
+case class KioskAvlTree(digest: Array[Byte], keyLength: Int, valueLengthOpt: Option[Int] = None) extends KioskType[AvlTree] {
+  private val avlTreeData = AvlTreeData(ADDigest @@ digest, AvlTreeFlags.AllOperationsAllowed, keyLength, valueLengthOpt)
+  override val value: AvlTree = sigmastate.eval.avlTreeDataToAvlTree(avlTreeData)
+  override lazy val serialize: Array[Byte] = ???
+  override val typeName: String = "AvlTree"
+  override def getErgoValue: ErgoValue[AvlTree] = ErgoValue.of(avlTreeData)
 }
 
 case class KioskCollGroupElement(groupElements: Array[GroupElement]) extends KioskType[Coll[GroupElement]] {
