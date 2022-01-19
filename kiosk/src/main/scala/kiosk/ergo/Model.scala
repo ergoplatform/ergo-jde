@@ -5,10 +5,10 @@ import org.bouncycastle.util.encoders.Hex
 import org.ergoplatform.appkit.{BlockchainContext, ErgoToken, ErgoType, ErgoValue, InputBox, OutBox}
 import scorex.crypto.authds.ADDigest
 import sigmastate.{AvlTreeData, AvlTreeFlags, SGroupElement}
-import sigmastate.Values.{ByteArrayConstant, CollectionConstant, ErgoTree, SigmaBoolean}
+import sigmastate.Values.{AvlTreeConstant, ByteArrayConstant, CollectionConstant, ErgoTree, SigmaBoolean}
 import sigmastate.eval.SigmaDsl
 import sigmastate.serialization.ErgoTreeSerializer.DefaultSerializer
-import sigmastate.serialization.ValueSerializer
+import sigmastate.serialization.{ConstantSerializer, ValueSerializer}
 import special.collection.Coll
 import special.sigma
 import special.sigma.{AvlTree, GroupElement, SigmaPropRType}
@@ -43,7 +43,7 @@ case class KioskCollByte(arrayBytes: Array[Byte]) extends KioskType[Coll[Byte]] 
 case class KioskAvlTree(digest: Array[Byte], keyLength: Int, valueLengthOpt: Option[Int] = None) extends KioskType[AvlTree] {
   private val avlTreeData = AvlTreeData(ADDigest @@ digest, AvlTreeFlags.AllOperationsAllowed, keyLength, valueLengthOpt)
   override val value: AvlTree = sigmastate.eval.avlTreeDataToAvlTree(avlTreeData)
-  override lazy val serialize: Array[Byte] = ???
+  override lazy val serialize: Array[Byte] = ValueSerializer.serialize(AvlTreeConstant(value))
   override val typeName: String = "AvlTree"
   override def getErgoValue: ErgoValue[AvlTree] = ErgoValue.of(avlTreeData)
 }
