@@ -2,16 +2,16 @@ package kiosk.ergo
 
 import kiosk.encoding.ScalaErgoConverters
 import org.bouncycastle.util.encoders.Hex
-import org.ergoplatform.appkit.{BlockchainContext, ErgoToken, ErgoType, ErgoValue, InputBox, OutBox}
+import org.ergoplatform.appkit._
 import scorex.crypto.authds.ADDigest
-import sigmastate.{AvlTreeData, AvlTreeFlags, SGroupElement}
-import sigmastate.Values.{AvlTreeConstant, ByteArrayConstant, CollectionConstant, ErgoTree, SigmaBoolean}
+import sigmastate.Values.{AvlTreeConstant, BooleanConstant, ByteArrayConstant, CollectionConstant, ErgoTree}
 import sigmastate.eval.SigmaDsl
 import sigmastate.serialization.ErgoTreeSerializer.DefaultSerializer
-import sigmastate.serialization.{ConstantSerializer, ValueSerializer}
+import sigmastate.serialization.ValueSerializer
+import sigmastate.{AvlTreeData, AvlTreeFlags, SGroupElement}
 import special.collection.Coll
 import special.sigma
-import special.sigma.{AvlTree, GroupElement, SigmaPropRType}
+import special.sigma.{AvlTree, GroupElement}
 
 class BetterString(string: String) {
   def decodeHex = Hex.decode(string)
@@ -37,15 +37,22 @@ case class KioskCollByte(arrayBytes: Array[Byte]) extends KioskType[Coll[Byte]] 
   lazy val stringValue = arrayBytes.encodeHex
   override def toString: String = stringValue
   override val typeName: String = "Coll[Byte]"
-  override def getErgoValue = ErgoValue.of(arrayBytes)
+  override def getErgoValue: ErgoValue[Coll[Byte]] = ErgoValue.of(arrayBytes)
 }
 
 case class KioskAvlTree(digest: Array[Byte], keyLength: Int, valueLengthOpt: Option[Int] = None) extends KioskType[AvlTree] {
-  private val avlTreeData = AvlTreeData(ADDigest @@ digest, AvlTreeFlags.AllOperationsAllowed, keyLength, valueLengthOpt)
+  private lazy val avlTreeData = AvlTreeData(ADDigest @@ digest, AvlTreeFlags.AllOperationsAllowed, keyLength, valueLengthOpt)
   override val value: AvlTree = sigmastate.eval.avlTreeDataToAvlTree(avlTreeData)
   override lazy val serialize: Array[Byte] = ValueSerializer.serialize(AvlTreeConstant(value))
   override val typeName: String = "AvlTree"
   override def getErgoValue: ErgoValue[AvlTree] = ErgoValue.of(avlTreeData)
+}
+
+case class KioskBoolean(value: Boolean) extends KioskType[Boolean] {
+  private lazy val booleanConstant = BooleanConstant(value)
+  override val serialize: Array[Byte] = ValueSerializer.serialize(booleanConstant)
+  override val typeName: String = "Boolean"
+  override def getErgoValue = ErgoValue.fromHex(serialize.encodeHex)
 }
 
 case class KioskCollGroupElement(groupElements: Array[GroupElement]) extends KioskType[Coll[GroupElement]] {
@@ -53,7 +60,7 @@ case class KioskCollGroupElement(groupElements: Array[GroupElement]) extends Kio
   override val serialize: Array[Byte] = ValueSerializer.serialize(CollectionConstant[SGroupElement.type](value, SGroupElement))
   override def toString: String = "[" + groupElements.map(_.getEncoded.toArray.encodeHex).reduceLeft(_ + "," + _) + "]"
   override val typeName: String = "Coll[GroupElement]"
-  override def getErgoValue = ErgoValue.of(groupElements, ErgoType.groupElementType)
+  override def getErgoValue: ErgoValue[Coll[GroupElement]] = ErgoValue.of(groupElements, ErgoType.groupElementType)
 }
 
 case class KioskInt(value: Int) extends KioskType[Int] {
