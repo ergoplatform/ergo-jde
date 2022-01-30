@@ -41,10 +41,12 @@ case class KioskCollByte(arrayBytes: Array[Byte]) extends KioskType[Coll[Byte]] 
 }
 
 case class KioskAvlTree(digest: Array[Byte], keyLength: Int, valueLengthOpt: Option[Int] = None) extends KioskType[AvlTree] {
+  def this(avlTree: AvlTree) = this(avlTree.digest.toArray, avlTree.keyLength, avlTree.valueLengthOpt)
   private lazy val avlTreeData = AvlTreeData(ADDigest @@ digest, AvlTreeFlags.AllOperationsAllowed, keyLength, valueLengthOpt)
   override val value: AvlTree = sigmastate.eval.avlTreeDataToAvlTree(avlTreeData)
   override lazy val serialize: Array[Byte] = ValueSerializer.serialize(AvlTreeConstant(value))
   override val typeName: String = "AvlTree"
+  override lazy val toString = serialize.encodeHex
   override def getErgoValue: ErgoValue[AvlTree] = ErgoValue.of(avlTreeData)
 }
 
