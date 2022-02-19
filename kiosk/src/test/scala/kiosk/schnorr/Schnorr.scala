@@ -13,20 +13,20 @@ object Schnorr extends App {
        |  val Y = SELF.R4[GroupElement].get
        |
        |  // Message to sign
-       |  val m = getVar[Coll[Byte]](0).get
+       |  val M = SELF.R5[Coll[Byte]].get
        |
        |  // c of signature in (c, s)
-       |  val cBytes = getVar[Coll[Byte]](1).get
+       |  val cBytes = getVar[Coll[Byte]](0).get
        |  val c = byteArrayToBigInt(cBytes)
        |  
        |  // s of signature in (c, s)
-       |  val s = getVar[BigInt](2).get
+       |  val s = getVar[BigInt](1).get
        |  
        |  // Computing challenge
        |  
        |  val U = g.exp(s).multiply(Y.exp(c)).getEncoded // as a byte array
        |  
-       |  sigmaProp(cBytes == sha256(U ++ m))
+       |  sigmaProp(cBytes == sha256(U ++ M))
        |}""".stripMargin
 
   lazy val ergoTree = ScriptUtil.compile(Map(), script)

@@ -48,9 +48,9 @@ There are several use-cases where we need to verify a Schnorr signature in ErgoS
 We use the following setup in our example: 
 
 1. The public key *Y* is provided as a `GroupElement` in R4. 
-2. The message *m* is provided as a `Coll[Byte]` in context variable 0.
-3. The value *c* of the signature is provided as a `Coll[Byte]` (for convenience) in context variable 1.
-4. The value *s* of the signature is provided as a `BigInt` in context variable 2.
+2. The message *M* is provided as a `Coll[Byte]` in R5.
+3. The value *c* of the signature is provided as a `Coll[Byte]` (for convenience) in context variable 0.
+4. The value *s* of the signature is provided as a `BigInt` in context variable 1.
 5. The hash function is Sha256. 
 
 The following is the script.
@@ -64,19 +64,19 @@ The following is the script.
   val Y = SELF.R4[GroupElement].get
 
   // Message to sign
-  val m = getVar[Coll[Byte]](0).get
+  val M = SELF.R5[Coll[Byte]].get
 
   // c of signature in (c, s)
-  val cBytes = getVar[Coll[Byte]](1).get
+  val cBytes = getVar[Coll[Byte]](0).get
   val c = byteArrayToBigInt(cBytes)
   
   // s of signature in (c, s)
-  val s = getVar[BigInt](2).get
+  val s = getVar[BigInt](1).get
   
   // Computing challenge
   
   val U = g.exp(s).multiply(Y.exp(c)).getEncoded // as a byte array
   
-  sigmaProp(cBytes == sha256(U ++ m))
+  sigmaProp(cBytes == sha256(U ++ M))
 }
 ```
