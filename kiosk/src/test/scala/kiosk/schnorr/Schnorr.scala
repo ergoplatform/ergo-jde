@@ -22,8 +22,6 @@ object Schnorr extends App {
        |  // s of signature in (c, s)
        |  val s = getVar[BigInt](1).get
        |  
-       |  // Computing challenge
-       |  
        |  val U = g.exp(s).multiply(Y.exp(c)).getEncoded // as a byte array
        |  
        |  sigmaProp(cBytes == sha256(U ++ M))
