@@ -97,12 +97,6 @@ class AvlInsertSpec extends PropSpec with Matchers with ScalaCheckDrivenProperty
         Array[DhtData](),
         false
       )
-      val x = KioskBox(
-        AvlInsert.address,
-        minStorageRent,
-        registers = Array(inTree, outTree, KioskCollByte(newKey), KioskCollByte(newValue), KioskCollByte(proof)),
-        tokens = Array()
-      )
     }
   }
 }
