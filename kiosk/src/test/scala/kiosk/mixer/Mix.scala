@@ -5,36 +5,48 @@ import kiosk.script.ScriptUtil
 
 object Mix extends App {
   lazy val script =
-    s"""{  
-       |   val h = SELF.R4[GroupElement].get
-       |   val w = SELF.R5[GroupElement].get
-       |   
-       |   val owner = proveDHTuple(h, h, w, w) // = proveDlog(h, w)
-       |   
-       |   val mix = {
-       |     val out1 = OUTPUTS(0)
-       |     val out2 = OUTPUTS(1)
-       |     
-       |     val hOut1 = out1.R4[GroupElement].get
-       |     val hOut2 = out2.R4[GroupElement].get
-       |     
-       |     val wOut1 = out1.R5[GroupElement].get
-       |     val wOut2 = out2.R5[GroupElement].get
-       |     
-       |     val validOuts = out1.propositionBytes == SELF.propositionBytes &&
-       |                     out2.propositionBytes == SELF.propositionBytes &&
-       |                     out1.value == SELF.value && 
-       |                     out2.value == SELF.value &&
-       |                     hOut1 != wOut1 && // to rule out point at infinity
-       |                     hOut2 != wOut2    // to rule out point at infinity        
-       |                       
-       |     val validW = proveDHTuple(h, w, hOut1, wOut1) || proveDHTuple(h, w, hOut2, wOut2)
-       |      
-       |     validW && validOuts
-       |   }
-       |   
-       |   mix || owner
-       |}
+    s"""{
+        |val a = SELF.R4[GroupElement].get     // current base for dLog
+        |val b = SELF.R5[GroupElement].get
+        |val m = SELF.R6[GroupElement].get  // public key of the mixer
+        |val h = SELF.R7[Int].get // height at which box was created
+        |
+        |val lockTime = 5 // number of blocks for which box is time-locked
+        |val owner = proveDHTuple(a, a, b, b)  // = proveDlog(a, b)
+        |val mixer = proveDlog(m)
+        |val timeOut = HEIGHT > h + lockTime
+        |
+        |val mix = {
+        |  val out0 = OUTPUTS(0)   // first output
+        |  val out1 = OUTPUTS(1)   // second output
+        |  
+        |  val a0 = out0.R4[GroupElement].get  // register a of first output
+        |  val a1 = out1.R4[GroupElement].get  // register a of second output
+        |  val b0 = out0.R5[GroupElement].get  // register b of first output
+        |  val b1 = out1.R5[GroupElement].get  // register b of second output
+        |  val m0 = out0.R6[GroupElement].get  // access group element to ensure it exists
+        |  val m1 = out1.R6[GroupElement].get  // access group element to ensure it exists
+        |  val h0 = out0.R7[Int].get  // height at which first output is created 
+        |  val h1 = out1.R7[Int].get  // height at which second output is created  
+        |  
+        |  // ensure outputs have same script as this box and have the same value
+        |  val validOuts = out0.propositionBytes == SELF.propositionBytes &&
+        |                  out1.propositionBytes == SELF.propositionBytes &&
+        |                  out0.value == SELF.value && 
+        |                  out1.value == SELF.value &&
+        |                  a0 != b0 && // rule out point at infinity
+        |                  a1 != b1 && // rule out point at infinity        
+        |                  h0 <= HEIGHT && // ensure that h0 is not too high
+        |                  h1 <= HEIGHT    // ensure that h1 is not too high
+        |      
+        |  // at least one of the outputs has the right relationship between R4, R5
+        |  val validAB = proveDHTuple(a, b, a0, b0) || proveDHTuple(a, b, a1, b1)
+        |  
+        |  validAB && validOuts && (mixer || timeOut)
+        |}
+        |
+        |owner || mix
+        |}
        |""".stripMargin
   lazy val ergoTree = ScriptUtil.compile(Map(), script)
   lazy val address = getStringFromAddress(getAddressFromErgoTree(ergoTree))
