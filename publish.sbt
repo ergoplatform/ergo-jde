@@ -4,17 +4,17 @@ ThisBuild / organizationHomepage := Some(url("https://www.ergoplatform.org"))
 
 ThisBuild / scmInfo := Some(
   ScmInfo(
-    url("https://github.com/ergoplatform/project"),
+    url("https://github.com/ergoplatform/ergo-jde"),
     "scm:git@github.ergoplatform/ergo-jde.git"
   )
 )
 
 ThisBuild / developers := List(
   Developer(
-    id    = "scalahub",
-    name  = "scalahub",
+    id = "scalahub",
+    name = "scalahub",
     email = "scalahub@gmail.com",
-    url   = url("https://www.ergoplatform.org")
+    url = url("https://www.ergoplatform.org")
   )
 )
 
