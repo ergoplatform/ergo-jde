@@ -3,6 +3,16 @@
 JDE can be thought of as a "Programmable" transaction builder for the Ergo blockchain, with JSON being the programming language.
 JDE is primarily intended for developers.
 
+### Using in your own project
+
+Add the following to build.sbt
+
+```
+  resolvers += "SonaType Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots/",
+  libraryDependencies += "io.github.ergoplatform" %% "ergojde" % "0.1.0-SNAPSHOT"
+```
+
+
 ### What can it do?
 
 Recall that in an Ergo dApp, building a transaction usually involves a combination of the following tasks:
