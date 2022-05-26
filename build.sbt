@@ -48,6 +48,7 @@ lazy val myMainClass = "cli.Compile"
 lazy val myJarName = "jde.jar"
 
 lazy val root = Project("ErgoJDE", file("."))
+  .aggregate(JDE, Kiosk)
   .dependsOn(JDE)
   .settings(
     commonResolvers,
