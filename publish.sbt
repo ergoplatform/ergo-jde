@@ -13,7 +13,7 @@ ThisBuild / developers := List(
   Developer(
     id = "scalahub",
     name = "scalahub",
-    email = "scalahub@gmail.com",
+    email = "23208922+scalahub@users.noreply.github.com",
     url = url("https://www.ergoplatform.org")
   )
 )
