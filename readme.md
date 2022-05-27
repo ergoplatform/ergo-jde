@@ -8,8 +8,7 @@ JDE is primarily intended for developers.
 Add the following to build.sbt
 
 ```
-  resolvers += "SonaType Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots/",
-  libraryDependencies += "io.github.ergoplatform" %% "ergojde" % "0.1.0-SNAPSHOT"
+  libraryDependencies += "io.github.ergoplatform" %% "ergojde" % "1.0"
 ```
 
 

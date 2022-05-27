@@ -1,5 +1,7 @@
 ThisBuild / scalaVersion := "2.12.10"
 
+ThisBuild / version := "1.0"
+
 ThisBuild / scalacOptions ++= Seq(
   "-Xlint",
   "-Ywarn-dead-code",
