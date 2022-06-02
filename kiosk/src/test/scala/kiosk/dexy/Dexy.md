@@ -9,9 +9,9 @@ The swap is one-way in the sense that we can only buy Dexy tokens by selling erg
    
 2. **Liquidify Pool**: The reverse swap, selling of Dexy tokens, is done via a Liquidity Pool (LP) which also permits buying Dexy tokens. The LP 
    primarily uses the logic of Uniswap V2. The difference is that the LP also takes as input the oracle pool rate and uses that to modify certain logic. In particular,
-   redeeming of LP tokens is not allowed when the oracle pool rate is below a certain percent (say 90%) of the oracle pool rate.
+   redeeming of LP tokens is not allowed when the oracle pool rate is below a certain percent (say 90%) of the LP rate.
    
-In case the oracle pool rate is higher than LP rate, then traders can do arbitrage by minting Dexy tokens from the emission box and 
+3. In case the oracle pool rate is higher than LP rate, then traders can do arbitrage by minting Dexy tokens from the emission box and 
    selling them to the LP. 
    
 4. In case the oracle pool rate is lower than LP rate, then the Ergs collected in the emission box can be used to bring the rate back up by performing a swap.

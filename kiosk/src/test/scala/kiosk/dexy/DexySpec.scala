@@ -70,7 +70,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    // This box: (LP box)
        |    //   R1 (value): X tokens in NanoErgs 
        |    //   R4: How many LP in circulation (long). This can be non-zero when bootstrapping, to consider the initial token burning in UniSwap v2
-       |    //   R5: Cross-counter. A counter to track how many times the rate has "crossed" the oracle pool rate. That is the oracle pool rate falls in between the before and after rates
+       |    //   R5: Stores the height where oracle pool rate becomes lower than LP rate. Reset to Long.MaxValue when rate crossed back. Called crossToggle below
        |    //   Tokens(0): LP NFT to uniquely identify NFT box. (Could we possibly do away with this?) 
        |    //   Tokens(1): LP tokens
        |    //   Tokens(2): Y tokens (Note that X tokens are NanoErgs (the value) 
@@ -79,7 +79,8 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    //   R4: Rate in units of X per unit of Y
        |    //   Token(0): OP NFT to uniquely identify Oracle Pool
        |     
-       |    // constants 
+       |    // constants
+       |    val threshold = 3 // error threshold in crossToggle
        |    val feeNum = 3 // 0.3 % 
        |    val feeDenom = 1000
        |    val minStorageRent = 10000000L  // this many number of nanoErgs are going to be permanently locked
@@ -122,10 +123,16 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    val lpRateXY1 = reservesX1 / reservesY1  // we can assume that reservesY1 > 0 (since at least one token must exist)
        |    val isCrossing = (lpRateXY0 - oraclePoolRateXY) * (lpRateXY1 - oraclePoolRateXY) < 0 // if (and only if) oracle pool rate falls in between, then this will be negative
        |     
-       |    val crossCounterIn = SELF.R5[Int].get
-       |    val crossCounterOut = successor.R5[Int].get
+       |    val crossToggleIn = SELF.R5[Int].get
+       |    val crossToggleOut = successor.R5[Int].get
        |    
-       |    val validCrossCounter = crossCounterOut == {if (isCrossing) crossCounterIn + 1 else crossCounterIn}
+       |    val validCrossCounter = {
+       |      if (isCrossing) {
+       |        if (lpRateXY1 > oraclePoolRateXY) {
+       |          crossToggleOut >= HEIGHT - threshold 
+       |        } else crossToggleOut == ${Long.MaxValue}L
+       |      } else crossToggleOut == crossToggleIn
+       |    } 
        |     
        |    val validRateForRedeemingLP = oraclePoolRateXY > lpRateXY0 * 9 / 10 // lpRate must be >= 0.9 oraclePoolRate // these parameters need to be tweaked
        |    // Do we need above if we also have the tracking contract?
@@ -177,68 +184,16 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |}
        |""".stripMargin
 
-  val trackingScript =
-    s"""{
-       |  // Tracking box
-       |  //   R4: Crossing Counter of LP box
-       |  //   tokens(0): TrackingNFT 
-       |  
-       |  val thresholdPercent = 90 // 90% or less value (of LP in terms of OraclePool) will trigger action (ensure less than 100)
-       |  val errorMargin = 3 // number of blocks where tracking error is allowed
-       |  
-       |  val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}") // to identify LP box for future use
-       |  val oraclePoolNFT = fromBase64("${Base64.encode(oraclePoolNFT.decodeHex)}") // to identify oracle pool box
-       |  
-       |  val lpBox = CONTEXT.dataInputs(0)
-       |  val oraclePoolBox = CONTEXT.dataInputs(1)
-       |  
-       |  val validLpBox = lpBox.tokens(0)._1 == lpNFT
-       |  val validOraclePoolBox = oraclePoolBox.tokens(0)._1 == oraclePoolNFT
-       |  
-       |  val tokenY    = lpBox.tokens(2)
-       |  
-       |  val reservesX = lpBox.value
-       |  val reservesY = tokenY._2
-       |  
-       |  val lpRateXY  = reservesX / reservesY  // we can assume that reservesY > 0 (since at least one token must exist)
-       |  
-       |  val oraclePoolRateXY = oraclePoolBox.R4[Long].get
-       |   
-       |  val crossCounter = lpBox.R5[Int].get // stores how many times LP rate has crossed oracle pool rate (by cross, we mean going from above to below or vice versa)
-       |  
-       |  val successor = OUTPUTS(0)
-       |
-       |  val validThreshold = lpRateXY * 100 < thresholdPercent * oraclePoolRateXY 
-       |  
-       |  val validSuccessor = successor.propositionBytes == SELF.propositionBytes && 
-       |                       successor.tokens == SELF.tokens && 
-       |                       successor.value >= SELF.value
-       |  
-       |  val validTracking = successor.R4[Int].get == crossCounter &&
-       |                      successor.creationInfo._1 > (HEIGHT - errorMargin)
-       |   
-       |    sigmaProp(
-       |      validLpBox &&
-       |      validOraclePoolBox && 
-       |      validThreshold &&
-       |      validSuccessor &&
-       |      validTracking
-       |     )
-       |}
-       |""".stripMargin
-
   val swappingScript =
     s"""{  
        |  val waitingPeriod = 20 // blocks after which a trigger swap event can be completed, provided rate has not crossed oracle pool rate 
-       |  val emissionNFT = fromBase64("${Base64.encode(emissionNFT.decodeHex)}") // to identify LP box for future use
-       |  val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}") // to identify LP box for future use
-       |  val trackingNFT = fromBase64("${Base64.encode(trackingNFT.decodeHex)}") // to identify LP box for future use
-       |  val oraclePoolNFT = fromBase64("${Base64.encode(oraclePoolNFT.decodeHex)}") // to identify oracle pool box
+       |  val emissionNFT = fromBase64("${Base64.encode(emissionNFT.decodeHex)}") 
+       |  val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}") 
+       |  val oraclePoolNFT = fromBase64("${Base64.encode(oraclePoolNFT.decodeHex)}")
        |  
        |  val thresholdPercent = 90 // 90% or less value (of LP in terms of OraclePool) will trigger action (ensure less than 100) 
        |  
        |  val oraclePoolBox = CONTEXT.dataInputs(0)
-       |  val trackingBox = CONTEXT.dataInputs(1)
        |  
        |  val lpBoxIn = INPUTS(0)
        |  val emissionBoxIn = INPUTS(1)
@@ -264,7 +219,6 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |   
        |  val validThreshold = lpRateXYIn * 100 < thresholdPercent * oraclePoolRateXY
        |   
-       |  val validTrackingBox = trackingBox.tokens(0)._1 == trackingNFT 
        |  val validOraclePoolBox = oraclePoolBox.tokens(0)._1 == oraclePoolNFT 
        |  val validLpBox = lpBoxIn.tokens(0)._1 == lpNFT
        |  
@@ -281,8 +235,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  val deltaLpX = reservesXOut - reservesXIn
        |  val deltaLpY = reservesYIn - reservesYOut
        |
-       |  val validLpIn = lpBoxIn.R5[Int].get == trackingBox.R4[Int].get && // no change in cross-counter
-       |                  trackingBox.creationInfo._1 < HEIGHT - waitingPeriod // at least waitingPeriod blocks have passed since the tracking started
+       |  val validLpIn = lpBoxIn.R5[Int].get < HEIGHT - waitingPeriod // at least waitingPeriod blocks have passed since the tracking started
        |                  
        |  val lpRateXYOutTimes100 = lpRateXYOut * 100
        |  
@@ -295,7 +248,6 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |                  validSuccessor &&
        |                  validLpBox &&
        |                  validOraclePoolBox &&
-       |                  validTrackingBox &&
        |                  validThreshold &&
        |                  validLpIn
        |   
@@ -310,10 +262,6 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
   val lpErgoTree = ScriptUtil.compile(Map(), lpScript)
   val lpAddress = getStringFromAddress(getAddressFromErgoTree(lpErgoTree))
   println(lpAddress)
-
-  val trackingErgoTree = ScriptUtil.compile(Map(), trackingScript)
-  val trackingAddress = getStringFromAddress(getAddressFromErgoTree(trackingErgoTree))
-  println(trackingAddress)
 
   val swappingErgoTree = ScriptUtil.compile(Map(), swappingScript)
   val swappingAddress = getStringFromAddress(getAddressFromErgoTree(swappingErgoTree))
