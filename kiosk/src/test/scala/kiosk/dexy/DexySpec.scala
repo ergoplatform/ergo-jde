@@ -70,7 +70,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    // This box: (LP box)
        |    //   R1 (value): X tokens in NanoErgs 
        |    //   R4: How many LP in circulation (long). This can be non-zero when bootstrapping, to consider the initial token burning in UniSwap v2
-       |    //   R5: Stores the height where oracle pool rate becomes lower than LP rate. Reset to Long.MaxValue when rate crossed back. Called crossToggle below
+       |    //   R5: Stores the height where oracle pool rate becomes lower than LP rate. Reset to Long.MaxValue when rate crossed back. Called crossTracker below
        |    //   Tokens(0): LP NFT to uniquely identify NFT box. (Could we possibly do away with this?) 
        |    //   Tokens(1): LP tokens
        |    //   Tokens(2): Y tokens (Note that X tokens are NanoErgs (the value) 
@@ -80,7 +80,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    //   Token(0): OP NFT to uniquely identify Oracle Pool
        |     
        |    // constants
-       |    val threshold = 3 // error threshold in crossToggle
+       |    val threshold = 3 // error threshold in crossTracker
        |    val feeNum = 3 // 0.3 % 
        |    val feeDenom = 1000
        |    val minStorageRent = 10000000L  // this many number of nanoErgs are going to be permanently locked
@@ -123,15 +123,15 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    val lpRateXY1 = reservesX1 / reservesY1  // we can assume that reservesY1 > 0 (since at least one token must exist)
        |    val isCrossing = (lpRateXY0 - oraclePoolRateXY) * (lpRateXY1 - oraclePoolRateXY) < 0 // if (and only if) oracle pool rate falls in between, then this will be negative
        |     
-       |    val crossToggleIn = SELF.R5[Int].get
-       |    val crossToggleOut = successor.R5[Int].get
+       |    val crossTrackerIn = SELF.R5[Int].get
+       |    val crossTrackerOut = successor.R5[Int].get
        |    
        |    val validCrossCounter = {
        |      if (isCrossing) {
        |        if (lpRateXY1 > oraclePoolRateXY) {
-       |          crossToggleOut >= HEIGHT - threshold 
-       |        } else crossToggleOut == ${Long.MaxValue}L
-       |      } else crossToggleOut == crossToggleIn
+       |          crossTrackerOut >= HEIGHT - threshold 
+       |        } else crossTrackerOut == ${Long.MaxValue}L
+       |      } else crossTrackerOut == crossTrackerIn
        |    } 
        |     
        |    val validRateForRedeemingLP = oraclePoolRateXY > lpRateXY0 * 9 / 10 // lpRate must be >= 0.9 oraclePoolRate // these parameters need to be tweaked

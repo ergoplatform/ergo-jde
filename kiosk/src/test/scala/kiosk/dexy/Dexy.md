@@ -1,8 +1,9 @@
-# Dexy Stablecoin Design
+# Dexy-USD StableCoin Design
 
-This gives a high level overview of the Dexy contracts. The design is extended from the forum post by Kushti.
+This gives a high level overview of the Dexy-USD, which is a "StableCoin" pegged to USD. The design is extended from [this forum post](https://www.ergoforum.org/t/dexy-usd-simplest-stablecoin-design/1430) by kushti.
+We use USD here because there is already an Erg-USD oracle deployed on the Ergo blockchain.
 
-Below are the main design aspects.
+Below are the main design aspects of Dexy-USD.
 
 1. **One-way tethering**: There is a minting (or "emission") contract that emits Dexy tokens (example DexyUSD) in a one-way swap using the oracle pool rate.
 The swap is one-way in the sense that we can only buy Dexy tokens by selling ergs to the box. We cannot do the reverse swap. 
@@ -19,13 +20,15 @@ The swap is one-way in the sense that we can only buy Dexy tokens by selling erg
    
 The swap logic is encoded in a **swapping** contract.
 
-There is another contract, the **tracking** contract that is responsible for tracking the LP's state. In particular, this contract
-tracks the block at which the "top-up-swap" is initiated. The swap can be initiated when the LP rate falls below 90%.
-Once initiated, if the LP rate remains below the oracle pool rate for a certain threshold number of blocks, the swap can be compleded.
-On the other hand, if before the threshold the rate goes higher than oracle pool then the swap must be aborted.
+The LP uses a "cross-tracker" to keep track of the height at which the oracle pool rate dropped below the LP rate after a swap, that is 
+the height at which the oracle pool rate was above the LP-box in rate but was below the LP-box out rate.
+When this even happens, R5 of the LP box will store the height (within an error margin) at which this happened.
+If the oracle pool rate again becomes higher than the LP rate, the register is set to Long.MaxValue (9223372036854775807).
+This register can only be changed when the oracle pool and LP rates cross each other during an exchange. At all other times
+this register must be preserved. 
 
-The LP uses a "cross-counter" to keep count of the number of times the LP rate has crossed the oracle pool rate (from below or above) in a swap transaction.
-If the cross-counter is preserved at swap initiation and completion then swap is valid, else it is aborted. This logic is present in the swapping box.
+The swap contract looks at R5 of the LP box and if the value is below a certain threshold (say 50 blocks) then the swap is allowed.
+This implies that a swap is valid only when the oracle pool rate falls below the LP rate and stays below for at least 50 blocks.
 
 ## Draining Attack
 
@@ -43,51 +46,3 @@ In order to stop this attack, we can look at one or more of the following measur
 2. Lock the Ergs in the emission contract until a certain time
 3. Don't allow minting when its profitable
 
-kushti khushi, [23/01/22 11:49 PM]
-On Dexyusd, I guess the biggest problem is that the most profitable strategy could be to mint usd at the top and put them on hold to drain erg from the pool then
-
-kushti khushi, [23/01/22 11:50 PM]
-So usd is short instrument against bank reserves then
-
-kushti khushi, [23/01/22 11:51 PM]
-And bank reserve is not overcollateraized even unlike sigusd
-
-kushti khushi, [24/01/22 12:31 AM]
-However, we have a delay for bank intervention to get started
-
-kushti khushi, [24/01/22 4:40 AM]
-And I guess in general a stablecoin is a short against reserves, if there are any reserves in place
- 
-kushti khushi, [24/01/22 8:00 PM]
-Maybe we need to time lock minted usd if current price is above avg minting price, or require to put minted usd into the pool if the condition is met
-
-kushti khushi, [24/01/22 8:00 PM]
-Any thoughts?
-
-kushti khushi, [27/01/22 1:24 AM]
-Maybe we need to require minted USD to be put into the pool, if oracle ERG/USD price is way above avg minting price, with liquidity tokens to be time-locked for e.g. one day
-
-kushti khushi, [21/02/22 5:18 AM]
-@keitodot welcome, will add Luivatra and few other folks as well
-
-kushti khushi, [21/02/22 5:20 AM]
-@keitodot what kind of help do you need in regards with lending contracts?
-
-k.吉, [21/02/22 5:30 AM]
-For single lender uncollaterized, I’m only afraid of security. Other than that it should be good. And having sigusd or other tokens implemented would be a breeze (once I get my computer, battery bulging for my current one lol)
-
-k.吉, [21/02/22 5:31 AM]
-After that I’m planning to get collaterized loans in. And then pooled loans
-
-kushti khushi, [21/02/22 5:32 AM]
-Do you have contracts publushed I guess?
-
-k.吉, [21/02/22 5:49 AM]
-For the single lender ergs we have it published
-
-k.吉, [21/02/22 5:49 AM]
-https://github.com/Ergo-Lend/ergo-lend-documentation/blob/main/contracts/SingleLender/contracts.scala
-
-kushti khushi, [26/02/22 3:03 AM]
-[In reply to k.吉]
-Thanks, will check over the weekend
