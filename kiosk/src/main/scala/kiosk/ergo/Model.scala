@@ -40,6 +40,16 @@ case class KioskCollByte(arrayBytes: Array[Byte]) extends KioskType[Coll[Byte]] 
   override def getErgoValue: ErgoValue[Coll[Byte]] = ErgoValue.of(arrayBytes)
 }
 
+case class KioskCollCollByte(arrayArrayBytes: Array[Array[Byte]]) extends KioskType[Coll[Coll[Byte]]] {
+  override val value: Coll[Coll[Byte]] = getErgoValue.getValue
+  override val serialize: Array[Byte] = getErgoValue.toHex.decodeHex
+  lazy val stringValue = arrayArrayBytes.map(_.encodeHex).mkString(",")
+  override def toString: String = stringValue
+  override val typeName: String = "Coll[Coll[Byte]]"
+  private lazy val arrayCollBytes: Array[Coll[Byte]] = arrayArrayBytes.map(arrayByte => JavaHelpers.collFrom(arrayByte))
+  override lazy val getErgoValue: ErgoValue[Coll[Coll[Byte]]] = ErgoValue.of(arrayCollBytes, ErgoType.collType(ErgoType.byteType))
+}
+
 case class KioskAvlTree(digest: Array[Byte], keyLength: Int, valueLengthOpt: Option[Int] = None) extends KioskType[AvlTree] {
   def this(avlTree: AvlTree) = this(avlTree.digest.toArray, avlTree.keyLength, avlTree.valueLengthOpt)
   private lazy val avlTreeData = AvlTreeData(ADDigest @@ digest, AvlTreeFlags.AllOperationsAllowed, keyLength, valueLengthOpt)
