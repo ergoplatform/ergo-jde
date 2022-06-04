@@ -31,10 +31,10 @@ object RegNum extends MyEnum {
 
 object BinaryOperator extends MyEnum { // input and output types are same
   type Operator = Value
-  val Add, Sub, Mul, Div, Max, Min = Value
+  val Add, Sub, Mul, Div, Max, Min, Mod, And, Or, Xor = Value
 
   def operate(operator: Operator, firstSecond: (KioskType[_], KioskType[_])): KioskType[_] = operate(operator, firstSecond._1, firstSecond._2)
-  def operate(operator: Operator, first: KioskType[_], second: KioskType[_]): KioskType[_] = {
+  private def operate(operator: Operator, first: KioskType[_], second: KioskType[_]): KioskType[_] = {
     (operator, first, second) match {
       case (Add, KioskLong(a), KioskLong(b))                 => KioskLong(a + b)
       case (Sub, KioskLong(a), KioskLong(b))                 => KioskLong(a - b)
@@ -42,11 +42,16 @@ object BinaryOperator extends MyEnum { // input and output types are same
       case (Div, KioskLong(a), KioskLong(b))                 => KioskLong(a / b)
       case (Max, KioskLong(a), KioskLong(b))                 => KioskLong(a max b)
       case (Min, KioskLong(a), KioskLong(b))                 => KioskLong(a min b)
+      case (Mod, KioskLong(a), KioskLong(b))                 => KioskLong(a % b)
       case (Add, KioskInt(a), KioskInt(b))                   => KioskInt(a + b)
       case (Sub, KioskInt(a), KioskInt(b))                   => KioskInt(a - b)
       case (Mul, KioskInt(a), KioskInt(b))                   => KioskInt(a * b)
       case (Div, KioskInt(a), KioskInt(b))                   => KioskInt(a / b)
       case (Max, KioskInt(a), KioskInt(b))                   => KioskInt(a max b)
+      case (Mod, KioskInt(a), KioskInt(b))                   => KioskInt(a % b)
+      case (And, KioskBoolean(a), KioskBoolean(b))           => KioskBoolean(a && b)
+      case (Or, KioskBoolean(a), KioskBoolean(b))            => KioskBoolean(a || b)
+      case (Xor, KioskBoolean(a), KioskBoolean(b))           => KioskBoolean(a ^ b)
       case (Min, KioskInt(a), KioskInt(b))                   => KioskInt(a min b)
       case (Add, KioskGroupElement(g), KioskGroupElement(h)) => KioskGroupElement(g.multiply(h))
       case (Sub, KioskGroupElement(g), KioskGroupElement(h)) => KioskGroupElement(g.multiply(h.negate))
@@ -57,8 +62,13 @@ object BinaryOperator extends MyEnum { // input and output types are same
 
 object UnaryOperator extends MyEnum { // input and output types are same
   type Operator = Value
-  val Hash, Neg, Abs, Sum, Avg, Min, Max, ProveDlog, ToCollByte, ToLong, ToInt, ToAddress, ToErgoTree, Count, ToGroupElement = Value
-  private val aggregates: Set[Operator] = Set(Sum, Avg, Min, Max)
+  val IsEmpty, Size, AllOf, AtleastOne, Sum, Avg, Min, Max, Head, Last, // aggregates (Multiple[_] to single value, also wrapped in a Multiple[_])
+  Init, Tail, // Multiple[_] to Multiple[_]
+  Not, Hash, Neg, Abs, // unary operators on same type (input and output types are same)
+  ProveDlog, ToCollByte, ToLong, ToInt, ToAddress, ToErgoTree, Count, ToGroupElement = // converters (changes type)
+    Value
+
+  private val aggregates: Set[Operator] = Set(IsEmpty, Size, AllOf, AtleastOne, Sum, Avg, Min, Max, Head, Last, Init, Tail)
   private val converters: Set[Operator] = Set(ProveDlog, ToCollByte, ToLong, ToInt, ToAddress, ToErgoTree, Count, ToGroupElement)
 
   def operate(operator: Operator, values: Multiple[KioskType[_]], `type`: DataType.Type): Multiple[KioskType[_]] = {
@@ -78,7 +88,7 @@ object UnaryOperator extends MyEnum { // input and output types are same
 
   private def toGroupElement(kioskErgoTree: KioskErgoTree) = {
     val ergoTreeHex = kioskErgoTree.hex
-    if (ergoTreeHex.size != 72) throw new Exception("PoveDlog ErgoTree should be exactly 72 chars")
+    if (ergoTreeHex.size != 72) throw new Exception("ProveDlog ErgoTree should be exactly 72 chars")
     if (ergoTreeHex.take(6) != "0008cd") throw new Exception("Invalid address prefix for proveDlog")
     KioskGroupElement(stringToGroupElement(ergoTreeHex.drop(6)))
   }
@@ -117,6 +127,7 @@ object UnaryOperator extends MyEnum { // input and output types are same
       case (Neg, KioskLong(a))         => KioskLong(-a)
       case (Abs, KioskInt(a))          => KioskInt(a.abs)
       case (Neg, KioskInt(a))          => KioskInt(-a)
+      case (Not, KioskBoolean(a))      => KioskBoolean(!a)
       case (op, someIn)                => throw new Exception(s"Invalid operation $op for ${someIn.typeName}")
     }
   }
@@ -126,16 +137,24 @@ object UnaryOperator extends MyEnum { // input and output types are same
       if (values.isEmpty) throw new Exception(s"Empty sequence found when evaluating aggregate $aggregate for type ${`type`}") else f
     }
     (`type`, aggregate) match {
-      case (DataType.Int, Sum)          => Multiple(KioskInt(to[KioskInt](values).seq.map(_.value).sum))
-      case (DataType.Int, Avg)          => requiringNonEmpty(Multiple(KioskInt(to[KioskInt](values).seq.map(_.value).sum / values.length)))
-      case (DataType.Int, Min)          => requiringNonEmpty(Multiple(KioskInt(to[KioskInt](values).seq.map(_.value).min)))
-      case (DataType.Int, Max)          => requiringNonEmpty(Multiple(KioskInt(to[KioskInt](values).seq.map(_.value).max)))
-      case (DataType.Long, Sum)         => Multiple(KioskLong(to[KioskLong](values).seq.map(_.value).sum))
-      case (DataType.Long, Avg)         => requiringNonEmpty(Multiple(KioskLong(to[KioskLong](values).seq.map(_.value).sum / values.length)))
-      case (DataType.Long, Min)         => requiringNonEmpty(Multiple(KioskLong(to[KioskLong](values).seq.map(_.value).min)))
-      case (DataType.Long, Max)         => requiringNonEmpty(Multiple(KioskLong(to[KioskLong](values).seq.map(_.value).max)))
-      case (DataType.GroupElement, Sum) => Multiple(to[KioskGroupElement](values).seq.foldLeft(PointAtInfinity)(_ + _))
-      case _                            => throw new Exception(s"Invalid aggregate $aggregate for data type ${`type`}")
+      case (_, Head)                      => Multiple(values.seq.head)
+      case (_, Tail)                      => Multiple(values.seq.tail: _*)
+      case (_, Init)                      => Multiple(values.seq.init: _*)
+      case (_, Last)                      => Multiple(values.seq.last)
+      case (_, IsEmpty)                   => Multiple(KioskBoolean(values.isEmpty))
+      case (_, Size)                      => Multiple(KioskInt(values.seq.size))
+      case (DataType.Boolean, AllOf)      => Multiple(KioskBoolean(to[KioskBoolean](values).seq.map(_.value).forall(_ == true)))
+      case (DataType.Boolean, AtleastOne) => Multiple(KioskBoolean(to[KioskBoolean](values).seq.map(_.value).exists(_ == true)))
+      case (DataType.Int, Sum)            => Multiple(KioskInt(to[KioskInt](values).seq.map(_.value).sum))
+      case (DataType.Int, Avg)            => requiringNonEmpty(Multiple(KioskInt(to[KioskInt](values).seq.map(_.value).sum / values.length)))
+      case (DataType.Int, Min)            => requiringNonEmpty(Multiple(KioskInt(to[KioskInt](values).seq.map(_.value).min)))
+      case (DataType.Int, Max)            => requiringNonEmpty(Multiple(KioskInt(to[KioskInt](values).seq.map(_.value).max)))
+      case (DataType.Long, Sum)           => Multiple(KioskLong(to[KioskLong](values).seq.map(_.value).sum))
+      case (DataType.Long, Avg)           => requiringNonEmpty(Multiple(KioskLong(to[KioskLong](values).seq.map(_.value).sum / values.length)))
+      case (DataType.Long, Min)           => requiringNonEmpty(Multiple(KioskLong(to[KioskLong](values).seq.map(_.value).min)))
+      case (DataType.Long, Max)           => requiringNonEmpty(Multiple(KioskLong(to[KioskLong](values).seq.map(_.value).max)))
+      case (DataType.GroupElement, Sum)   => Multiple(to[KioskGroupElement](values).seq.foldLeft(PointAtInfinity)(_ + _))
+      case _                              => throw new Exception(s"Invalid aggregate $aggregate for data type ${`type`}")
     }
   }
 }

@@ -9,7 +9,7 @@ object Mix extends App {
         |val a = SELF.R4[GroupElement].get     // current base for dLog
         |val b = SELF.R5[GroupElement].get
         |val m = SELF.R6[GroupElement].get  // public key of the mixer
-        |val h = SELF.R7[Int].get // height at which box was created
+        |val h = SELF.creationInfo._1 // height at which box was created
         |
         |val lockTime = 5 // number of blocks for which box is time-locked
         |val owner = proveDHTuple(a, a, b, b)  // = proveDlog(a, b)
@@ -26,8 +26,8 @@ object Mix extends App {
         |  val b1 = out1.R5[GroupElement].get  // register b of second output
         |  val m0 = out0.R6[GroupElement].get  // access group element to ensure it exists
         |  val m1 = out1.R6[GroupElement].get  // access group element to ensure it exists
-        |  val h0 = out0.R7[Int].get  // height at which first output is created 
-        |  val h1 = out1.R7[Int].get  // height at which second output is created  
+        |  val h0 = out0.creationInfo._1  // height at which first output is created 
+        |  val h1 = out1.creationInfo._1  // height at which second output is created  
         |  
         |  // ensure outputs have same script as this box and have the same value
         |  val validOuts = out0.propositionBytes == SELF.propositionBytes &&

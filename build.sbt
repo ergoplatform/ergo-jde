@@ -1,6 +1,6 @@
 ThisBuild / scalaVersion := "2.12.10"
 
-ThisBuild / version := "1.0"
+ThisBuild / version := "1.1"
 
 ThisBuild / scalacOptions ++= Seq(
   "-Xlint",
@@ -18,6 +18,13 @@ lazy val commonResolvers = resolvers ++= Seq(
   "SonaType" at "https://oss.sonatype.org/content/groups/public",
   "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
 )
+
+lazy val commonMergeStrategy = assembly / assemblyMergeStrategy := {
+  case PathList("reference.conf")           => MergeStrategy.concat
+  case PathList("META-INF", xs @ _*)        => MergeStrategy.discard
+  case x if x.endsWith("module-info.class") => MergeStrategy.discard
+  case x                                    => MergeStrategy.first
+}
 
 updateOptions := updateOptions.value.withLatestSnapshots(false)
 
@@ -41,6 +48,7 @@ lazy val JDE = Project("jde", file("jde"))
   .settings(
     commonResolvers,
     commonDependencies,
+    commonMergeStrategy,
     libraryDependencies ++= Seq(
       "com.typesafe.play" %% "play-json" % "2.9.2"
     )
@@ -59,12 +67,7 @@ lazy val root = Project("ErgoJDE", file("."))
     Compile / mainClass := Some(myMainClass),
     assembly / mainClass := Some(myMainClass),
     assembly / assemblyJarName := myJarName,
-    assembly / assemblyMergeStrategy := {
-      case PathList("reference.conf")           => MergeStrategy.concat
-      case PathList("META-INF", xs @ _*)        => MergeStrategy.discard
-      case x if x.endsWith("module-info.class") => MergeStrategy.discard
-      case x                                    => MergeStrategy.first
-    }
+    commonMergeStrategy
   )
 
 enablePlugins(JettyPlugin)

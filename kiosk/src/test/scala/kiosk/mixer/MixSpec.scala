@@ -22,6 +22,7 @@ class MixSpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyChecks
   val dummyIndex = 1.toShort
 
   val g: GroupElement = CryptoConstants.dlogGroup.generator
+  val mixerX = BigInt(Blake2b256("mixer")) // secret
 
   val dummyRegisters: Array[KioskType[_]] = Array(KioskGroupElement(g), KioskGroupElement(g)) // dummy registers needed in withdraw due to AOTC
 
@@ -53,11 +54,11 @@ class MixSpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyChecks
           .getOutputsToSpend
           .get(0)
       }
-      def boxToCreate(r4: GroupElement, r5: GroupElement): KioskBox = {
+      def boxToCreate(r4: GroupElement, r5: GroupElement, r6: GroupElement): KioskBox = {
         KioskBox(
           Mix.address,
           minStorageRent,
-          registers = Array(KioskGroupElement(r4), KioskGroupElement(r5)),
+          registers = Array(KioskGroupElement(r4), KioskGroupElement(r5), KioskGroupElement(r6)),
           tokens = Array()
         )
       }
@@ -70,11 +71,13 @@ class MixSpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyChecks
 
         val oldR4: GroupElement = inBox.getRegisters.get(0).asInstanceOf[ErgoValue[GroupElement]].getValue
         val oldR5: GroupElement = inBox.getRegisters.get(1).asInstanceOf[ErgoValue[GroupElement]].getValue
+        val oldR6: GroupElement = inBox.getRegisters.get(2).asInstanceOf[ErgoValue[GroupElement]].getValue
 
         val newR4 = oldR4.exp(secret.bigInteger)
         val newR5 = oldR5.exp(secret.bigInteger)
+        val newR6 = oldR6
 
-        (boxToCreate(newR4, newR5), DhtData(oldR4, oldR5, newR4, newR5, secret))
+        (boxToCreate(newR4, newR5, newR6), DhtData(oldR4, oldR5, newR4, newR5, secret))
       }
 
       def mix(aliceInBox: InputBox, bobInBox: InputBox): (InputBox, InputBox, Boolean) = {
@@ -93,7 +96,7 @@ class MixSpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyChecks
           outputs,
           fee = 1000000L,
           changeAddress,
-          Array[String](),
+          Array[String](mixerX.toString),
           Array[DhtData](aliceDhtData, bobDhtData),
           false
         )
@@ -132,8 +135,10 @@ class MixSpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyChecks
       val aliceR5: GroupElement = aliceR4.exp(aliceX.bigInteger)
       val bobR5: GroupElement = bobR4.exp(bobX.bigInteger)
 
-      val aliceBoxToCreate: KioskBox = boxToCreate(aliceR4, aliceR5)
-      val bobBoxToCreate: KioskBox = boxToCreate(bobR4, bobR5)
+      val mixerR6: GroupElement = g.exp(mixerX.bigInteger)
+
+      val aliceBoxToCreate: KioskBox = boxToCreate(aliceR4, aliceR5, mixerR6)
+      val bobBoxToCreate: KioskBox = boxToCreate(bobR4, bobR5, mixerR6)
 
       val aliceInBox: InputBox = getInputBox(aliceBoxToCreate)
       val bobInBox: InputBox = getInputBox(bobBoxToCreate)
