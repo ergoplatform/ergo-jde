@@ -5,7 +5,7 @@ import kiosk.encoding.ScalaErgoConverters
 // Used in JDE
 object DataType extends MyEnum {
   type Type = Value
-  val Long, Int, CollByte, Boolean, GroupElement, ErgoTree, Address, Unknown = Value
+  val Long, Int, Boolean, GroupElement, CollByte, ErgoTree, Address, BigInt, Unknown = Value
 
   def getValue(stringValue: String, `type`: DataType.Type): KioskType[_] = {
     `type` match {
@@ -16,6 +16,7 @@ object DataType extends MyEnum {
       case CollByte     => KioskCollByte(stringValue.decodeHex)
       case ErgoTree     => KioskErgoTree(ScalaErgoConverters.stringToErgoTree(stringValue))
       case Address      => KioskErgoTree(ScalaErgoConverters.getAddressFromString(stringValue).script)
+      case BigInt       => KioskBigInt(scala.BigInt(stringValue))
       case any          => throw new Exception(s"Unknown type $any")
     }
   }
@@ -29,6 +30,7 @@ object DataType extends MyEnum {
       case (GroupElement, _: KioskGroupElement) => true
       case (ErgoTree, _: KioskErgoTree)         => true
       case (Address, _: KioskErgoTree)          => true
+      case (BigInt, _: KioskBigInt)             => true
       case _                                    => false
     }
   }

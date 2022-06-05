@@ -1,6 +1,7 @@
 package jde.compiler.model
 
 import jde.compiler._
+import kiosk.ErgoUtil
 import kiosk.ergo._
 import kiosk.encoding.ScalaErgoConverters.stringToGroupElement
 import kiosk.script.ScriptUtil
@@ -37,6 +38,10 @@ object BinaryOperator extends MyEnum { // input and output types are same
   private def operate(operator: Operator, first: KioskType[_], second: KioskType[_]): KioskType[_] = {
     (operator, first, second) match {
       case (Add, KioskLong(a), KioskLong(b))                 => KioskLong(a + b)
+      case (Mod, KioskBigInt(a), KioskBigInt(b))             => KioskBigInt(a % b)
+      case (Add, KioskBigInt(a), KioskBigInt(b))             => KioskBigInt(a + b)
+      case (Sub, KioskBigInt(a), KioskBigInt(b))             => KioskBigInt(a - b)
+      case (Mul, KioskBigInt(a), KioskBigInt(b))             => KioskBigInt(a * b)
       case (Sub, KioskLong(a), KioskLong(b))                 => KioskLong(a - b)
       case (Mul, KioskLong(a), KioskLong(b))                 => KioskLong(a * b)
       case (Div, KioskLong(a), KioskLong(b))                 => KioskLong(a / b)
@@ -65,11 +70,13 @@ object UnaryOperator extends MyEnum { // input and output types are same
   val IsEmpty, Size, AllOf, AtleastOne, Sum, Avg, Min, Max, Head, Last, // aggregates (Multiple[_] to single value, also wrapped in a Multiple[_])
   Init, Tail, // Multiple[_] to Multiple[_]
   Not, Hash, Neg, Abs, // unary operators on same type (input and output types are same)
-  ProveDlog, ToCollByte, ToLong, ToInt, ToAddress, ToErgoTree, Count, ToGroupElement = // converters (changes type)
+  ProveDlog, ToCollByte, ToLong, ToInt, ToAddress, ToErgoTree, Count, ToGroupElement, BytesToBigInt, Exp = // converters (changes type)
     Value
+  // currently Bytes => BigInt is supported
+  // Exp = g^x for BigInt x
 
   private val aggregates: Set[Operator] = Set(IsEmpty, Size, AllOf, AtleastOne, Sum, Avg, Min, Max, Head, Last, Init, Tail)
-  private val converters: Set[Operator] = Set(ProveDlog, ToCollByte, ToLong, ToInt, ToAddress, ToErgoTree, Count, ToGroupElement)
+  private val converters: Set[Operator] = Set(ProveDlog, ToCollByte, ToLong, ToInt, ToAddress, ToErgoTree, Count, ToGroupElement, BytesToBigInt, Exp)
 
   def operate(operator: Operator, values: Multiple[KioskType[_]], `type`: DataType.Type): Multiple[KioskType[_]] = {
     operator match {
@@ -102,6 +109,8 @@ object UnaryOperator extends MyEnum { // input and output types are same
       case ToInt          => KioskInt(fromValue.asInstanceOf[KioskLong].value.toInt)
       case ToAddress      => fromValue.ensuring(_.isInstanceOf[KioskErgoTree])
       case ToErgoTree     => fromValue.ensuring(_.isInstanceOf[KioskErgoTree])
+      case BytesToBigInt  => KioskBigInt(scala.BigInt(fromValue.asInstanceOf[KioskCollByte].value.toArray))
+      case Exp            => KioskGroupElement(ErgoUtil.gX(fromValue.asInstanceOf[KioskBigInt].bigInt))
     }
   }
 
@@ -114,6 +123,8 @@ object UnaryOperator extends MyEnum { // input and output types are same
       case ToAddress      => FromTo(from = DataType.ErgoTree, to = DataType.Address)
       case ToErgoTree     => FromTo(from = DataType.Address, to = DataType.ErgoTree)
       case ToGroupElement => FromTo(from = DataType.Address, to = DataType.GroupElement)
+      case BytesToBigInt  => FromTo(from = DataType.CollByte, to = DataType.BigInt)
+      case Exp            => FromTo(from = DataType.BigInt, to = DataType.GroupElement)
       case Count          => FromTo(from = DataType.Unknown, to = DataType.Int)
       case _              => FromTo(from = DataType.Unknown, to = DataType.Unknown)
     }
@@ -127,6 +138,8 @@ object UnaryOperator extends MyEnum { // input and output types are same
       case (Neg, KioskLong(a))         => KioskLong(-a)
       case (Abs, KioskInt(a))          => KioskInt(a.abs)
       case (Neg, KioskInt(a))          => KioskInt(-a)
+      case (Abs, KioskBigInt(a))       => KioskBigInt(a.abs)
+      case (Neg, KioskBigInt(a))       => KioskBigInt(-a)
       case (Not, KioskBoolean(a))      => KioskBoolean(!a)
       case (op, someIn)                => throw new Exception(s"Invalid operation $op for ${someIn.typeName}")
     }
@@ -137,10 +150,10 @@ object UnaryOperator extends MyEnum { // input and output types are same
       if (values.isEmpty) throw new Exception(s"Empty sequence found when evaluating aggregate $aggregate for type ${`type`}") else f
     }
     (`type`, aggregate) match {
-      case (_, Head)                      => Multiple(values.seq.head)
-      case (_, Tail)                      => Multiple(values.seq.tail: _*)
-      case (_, Init)                      => Multiple(values.seq.init: _*)
-      case (_, Last)                      => Multiple(values.seq.last)
+      case (_, Head)                      => requiringNonEmpty(Multiple(values.seq.head))
+      case (_, Tail)                      => requiringNonEmpty(Multiple(values.seq.tail: _*))
+      case (_, Init)                      => requiringNonEmpty(Multiple(values.seq.init: _*))
+      case (_, Last)                      => requiringNonEmpty(Multiple(values.seq.last))
       case (_, IsEmpty)                   => Multiple(KioskBoolean(values.isEmpty))
       case (_, Size)                      => Multiple(KioskInt(values.seq.size))
       case (DataType.Boolean, AllOf)      => Multiple(KioskBoolean(to[KioskBoolean](values).seq.map(_.value).forall(_ == true)))
