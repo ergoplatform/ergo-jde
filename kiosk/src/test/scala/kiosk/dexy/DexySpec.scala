@@ -13,32 +13,46 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
   val oraclePoolNFT = "472B4B6250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val lpNFT = "361A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val trackingNFT = "261A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
-  val swappingNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
-  val emissionNFT = "061A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
-  val emissionScript =
+  val interventionNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
+  val bankNFT = "061A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
+  val bankScript =
     s"""{ 
-       |  // This box: (dexyUSD emission box)
-       |  //   tokens(0): emissionNFT identifying the box
+       |  // This box: (dexyUSD bank box)
+       |  //   tokens(0): bankNFT identifying the box
        |  //   tokens(1): dexyUSD tokens to be emitted
        |  
        |  val selfOutIndex = getVar[Int](0).get
        |  
        |  val oraclePoolNFT = fromBase64("${Base64.encode(oraclePoolNFT.decodeHex)}") // to identify oracle pool box
-       |  val swappingNFT = fromBase64("${Base64.encode(swappingNFT.decodeHex)}") // to identify swapping box for future use
-       |  
-       |  val validEmission = {
+       |  val interventionNFT = fromBase64("${Base64.encode(interventionNFT.decodeHex)}") // to identify intervention box for future use
+       |  val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}")
+       |   
+       |  val validBank = {
        |    val oraclePoolBox = CONTEXT.dataInputs(0) // oracle-pool (v1 and v2) box containing rate in R4
+       |    
+       |    val lpBox = CONTEXT.dataInputs(1) 
        |  
        |    val validOP = oraclePoolBox.tokens(0)._1 == oraclePoolNFT
+       |    
+       |    val validLP = lpBox.tokens(0)._1 == lpNFT
        |  
        |    val oraclePoolRate = oraclePoolBox.R4[Long].get // can assume always > 0 (ref oracle pool contracts) NanoErgs per USD
-       |  
+       |
+       |    val lpReservesX = lpBox.value
+       |    
+       |    val lpReservesY = lpBox.tokens(2)._2
+       |    
+       |    val lpRate = lpReservesX / lpReservesY  
+       |    
+       |    val validRateFreeMint = 98 * lpRate < oraclePoolRate * 100 &&  
+       |                            oraclePoolRate * 100 < 102 * lpRate 
+       |     
        |    val selfOut = OUTPUTS(selfOutIndex)
        |  
-       |    val validSelfOut = selfOut.tokens(0) == SELF.tokens(0) && // emissionNFT and quantity preserved
-       |                     selfOut.propositionBytes == SELF.propositionBytes && // script preserved
-       |                     selfOut.tokens(1)._1 == SELF.tokens(1)._1 && // dexyUSD tokenId preserved
-       |                     selfOut.value > SELF.value // can only purchase dexyUSD, not sell it
+       |    val validSelfOut = selfOut.tokens(0) == SELF.tokens(0) && // bankNFT and quantity preserved
+       |                       selfOut.propositionBytes == SELF.propositionBytes && // script preserved
+       |                       selfOut.tokens(1)._1 == SELF.tokens(1)._1 && // dexyUSD tokenId preserved
+       |                       selfOut.value > SELF.value // can only purchase dexyUSD, not sell it
        |                     
        |    val inTokens = SELF.tokens(1)._2
        |    val outTokens = selfOut.tokens(1)._2
@@ -49,12 +63,12 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  
        |    val validDelta = deltaErgs >= deltaTokens * oraclePoolRate // deltaTokens must be (+)ve, since both deltaErgs and oraclePoolRate are (+)ve
        |  
-       |    validOP && validSelfOut && validDelta
+       |    validOP && validLP && validSelfOut && validDelta && validRateFreeMint
        |  }
        |  
-       |  val validTopping = INPUTS(0).tokens(0)._1 == swappingNFT
+       |  val validIntervention = INPUTS(0).tokens(0)._1 == interventionNFT
        |  
-       |  sigmaProp(validEmission || validTopping)
+       |  sigmaProp(validBank || validIntervention)
        |}
        |""".stripMargin
 
@@ -134,7 +148,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |      } else crossTrackerOut == crossTrackerIn
        |    } 
        |     
-       |    val validRateForRedeemingLP = oraclePoolRateXY > lpRateXY0 * 9 / 10 // lpRate must be >= 0.9 oraclePoolRate // these parameters need to be tweaked
+       |    val validRateForRedeemingLP = oraclePoolRateXY > lpRateXY0 * 98 / 100 // lpRate must be >= 0.98 * oraclePoolRate // these parameters need to be tweaked
        |    // Do we need above if we also have the tracking contract?
        |     
        |    val deltaSupplyLP  = supplyLP1 - supplyLP0
@@ -184,22 +198,25 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |}
        |""".stripMargin
 
-  val swappingScript =
+  val interventionScript =
     s"""{  
-       |  val waitingPeriod = 20 // blocks after which a trigger swap event can be completed, provided rate has not crossed oracle pool rate 
-       |  val emissionNFT = fromBase64("${Base64.encode(emissionNFT.decodeHex)}") 
+       |  val lastIntervention = SELF.creationInfo._1
+       |  val buffer = 3 // error margin in height
+       |  val T = 100 // from paper, gap between two interventions
+       |  val T_int = 20 // blocks after which a trigger swap event can be completed, provided rate has not crossed oracle pool rate 
+       |  val bankNFT = fromBase64("${Base64.encode(bankNFT.decodeHex)}") 
        |  val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}") 
        |  val oraclePoolNFT = fromBase64("${Base64.encode(oraclePoolNFT.decodeHex)}")
        |  
-       |  val thresholdPercent = 90 // 90% or less value (of LP in terms of OraclePool) will trigger action (ensure less than 100) 
+       |  val thresholdPercent = 98 // 98% or less value (of LP in terms of OraclePool) will trigger action (ensure less than 100) 
        |  
        |  val oraclePoolBox = CONTEXT.dataInputs(0)
        |  
        |  val lpBoxIn = INPUTS(0)
-       |  val emissionBoxIn = INPUTS(1)
+       |  val bankBoxIn = INPUTS(1)
        |
        |  val lpBoxOut = OUTPUTS(0)
-       |  val emissionBoxOut = OUTPUTS(1)
+       |  val bankBoxOut = OUTPUTS(1)
        |  
        |  val successor = OUTPUTS(2) // SELF should be INPUTS(2)
        |  
@@ -224,47 +241,51 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  
        |  val validSuccessor = successor.propositionBytes == SELF.propositionBytes &&
        |                       successor.tokens == SELF.tokens &&
-       |                       successor.value == SELF.value
+       |                       successor.value == SELF.value &&
+       |                       successor.creationInfo._1 >= HEIGHT - buffer
        |  
-       |  val validEmissionBoxIn = emissionBoxIn.tokens(0)._1 == emissionNFT 
-       |  val validEmissionBoxOut = emissionBoxOut.tokens(0) == emissionBoxIn.tokens(0) &&
-       |                            emissionBoxOut.tokens(1)._1 == emissionBoxIn.tokens(1)._1
+       |  val validBankBoxIn = bankBoxIn.tokens(0)._1 == bankNFT 
+       |  val validBankBoxOut = bankBoxOut.tokens(0) == bankBoxIn.tokens(0) &&
+       |                        bankBoxOut.tokens(1)._1 == bankBoxIn.tokens(1)._1
        |  
-       |  val deltaEmissionTokens =  emissionBoxOut.tokens(1)._2 - emissionBoxIn.tokens(1)._2
-       |  val deltaEmissionErgs = emissionBoxIn.value - emissionBoxOut.value
+       |  val validGap = lastIntervention < HEIGHT - T
+       |  
+       |  val deltaBankTokens =  bankBoxOut.tokens(1)._2 - bankBoxIn.tokens(1)._2
+       |  val deltaBankErgs = bankBoxIn.value - bankBoxOut.value
        |  val deltaLpX = reservesXOut - reservesXIn
        |  val deltaLpY = reservesYIn - reservesYOut
        |
-       |  val validLpIn = lpBoxIn.R5[Int].get < HEIGHT - waitingPeriod // at least waitingPeriod blocks have passed since the tracking started
+       |  val validLpIn = lpBoxIn.R5[Int].get < HEIGHT - T_int // at least T_int blocks have passed since the tracking started
        |                  
        |  val lpRateXYOutTimes100 = lpRateXYOut * 100
        |  
        |  val validSwap = lpRateXYOutTimes100 >= oraclePoolRateXY * 105 && // new rate must be >= 1.05 times oracle rate
        |                  lpRateXYOutTimes100 <= oraclePoolRateXY * 110 && // new rate must be <= 1.1 times oracle rate
-       |                  deltaEmissionErgs <= deltaLpX && // ergs reduced in emission box must be <= ergs gained in LP 
-       |                  deltaEmissionTokens >= deltaLpY && // tokens gained in emission box must be >= tokens reduced in LP 
-       |                  validEmissionBoxIn &&
-       |                  validEmissionBoxOut &&
+       |                  deltaBankErgs <= deltaLpX && // ergs reduced in bank box must be <= ergs gained in LP 
+       |                  deltaBankTokens >= deltaLpY && // tokens gained in bank box must be >= tokens reduced in LP 
+       |                  validBankBoxIn &&
+       |                  validBankBoxOut &&
        |                  validSuccessor &&
        |                  validLpBox &&
        |                  validOraclePoolBox &&
        |                  validThreshold &&
-       |                  validLpIn
+       |                  validLpIn && 
+       |                  validGap
        |   
        |  sigmaProp(validSwap)
        |}
        |""".stripMargin
 
-  val emissionErgoTree = ScriptUtil.compile(Map(), emissionScript)
-  val emissionAddress = getStringFromAddress(getAddressFromErgoTree(emissionErgoTree))
-  println(emissionAddress)
+  val bankErgoTree = ScriptUtil.compile(Map(), bankScript)
+  val bankAddress = getStringFromAddress(getAddressFromErgoTree(bankErgoTree))
+  println(bankAddress)
 
   val lpErgoTree = ScriptUtil.compile(Map(), lpScript)
   val lpAddress = getStringFromAddress(getAddressFromErgoTree(lpErgoTree))
   println(lpAddress)
 
-  val swappingErgoTree = ScriptUtil.compile(Map(), swappingScript)
-  val swappingAddress = getStringFromAddress(getAddressFromErgoTree(swappingErgoTree))
-  println(swappingAddress)
+  val interventionErgoTree = ScriptUtil.compile(Map(), interventionScript)
+  val interventionAddress = getStringFromAddress(getAddressFromErgoTree(interventionErgoTree))
+  println(interventionAddress)
 
 }
