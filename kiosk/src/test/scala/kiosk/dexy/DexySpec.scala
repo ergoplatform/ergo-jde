@@ -14,6 +14,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
   val lpNFT = "361A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val trackingNFT = "261A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val interventionNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
+  val freeMintNFT = "061A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val bankNFT = "061A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val bankScript =
     s"""{ 
@@ -21,13 +22,27 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  //   tokens(0): bankNFT identifying the box
        |  //   tokens(1): dexyUSD tokens to be emitted
        |  
+       |  // Usually bank box will be spent as follows 
+       |  //
+       |  //   Mint
+       |  //   Input    |  Output
+       |  // 0 Bank     |  Bank
+       |  // 1 ...      |  ...
+       |  //  
+       |  //   Intervention
+       |  //   Input    |  Output
+       |  // 0 LP       |  LP
+       |  // 1 Bank     |  Bank
+       |  // 2 ...      |  ...
+       |  //  
        |  val selfOutIndex = getVar[Int](0).get
        |  
        |  val oraclePoolNFT = fromBase64("${Base64.encode(oraclePoolNFT.decodeHex)}") // to identify oracle pool box
        |  val interventionNFT = fromBase64("${Base64.encode(interventionNFT.decodeHex)}") // to identify intervention box for future use
+       |  val freeMintNFT = fromBase64("${Base64.encode(freeMintNFT.decodeHex)}") 
        |  val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}")
        |   
-       |  val validBank = {
+       |  val validMint = {
        |    val oraclePoolBox = CONTEXT.dataInputs(0) // oracle-pool (v1 and v2) box containing rate in R4
        |    
        |    val lpBox = CONTEXT.dataInputs(1) 
@@ -63,12 +78,65 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  
        |    val validDelta = deltaErgs >= deltaTokens * oraclePoolRate // deltaTokens must be (+)ve, since both deltaErgs and oraclePoolRate are (+)ve
        |  
-       |    validOP && validLP && validSelfOut && validDelta && validRateFreeMint
+       |    val validFreeExtraLogic = INPUTS(1).tokens(0)._1 == freeMintNFT
+       |    
+       |    validOP && validLP && validSelfOut && validDelta && validRateFreeMint && validFreeExtraLogic
        |  }
        |  
-       |  val validIntervention = INPUTS(0).tokens(0)._1 == interventionNFT
+       |  val validIntervention = INPUTS(2).tokens(0)._1 == interventionNFT
        |  
-       |  sigmaProp(validBank || validIntervention)
+       |  sigmaProp(validMint || validIntervention)
+       |}
+       |""".stripMargin
+
+  // free mint box
+  val freeMintScript =
+    s"""{
+       |  // this box: (free-mint box)
+       |  //   tokens(0): Free-mint NFT
+       |  // 
+       |  //   R4: (Int) height at which counter will reset
+       |  //   R5: (Long) remaining stablecoins available to be purchased before counter is reset
+       |  
+       |  val bankNFT = fromBase64("${Base64.encode(bankNFT.decodeHex)}") 
+       |  val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}")
+       |  val tFree = 100
+       |  
+       |  val bankBoxIn = INPUTS(0)
+       |  val lpBox = CONTEXT.dataInputs(1) // bank box requires dataInputs(0) to be oracle pool box, so 1 is LP box
+       |   
+       |  val selfOutIndex = getVar[Int](0).get
+       |  val bankOutIndex = getVar[Int](1).get
+       |
+       |  val selfOut = OUTPUTS(selfOutIndex)
+       |  val bankBoxOut = OUTPUTS(bankOutIndex)
+       |  
+       |  val selfInR4 = SELF.R4[Int].get
+       |  val selfInR5 = SELF.R5[Long].get
+       |  val selfOutR4 = selfOut.R4[Int].get
+       |  val selfOutR5 = selfOut.R5[Long].get
+       |
+       |  val isCounterReset = HEIGHT > selfInR4
+       |  
+       |  val dexyReserves = lpBox.tokens(2)._2
+       |    
+       |  val dexyMinted = bankBoxIn.tokens(1)._2 - bankBoxOut.tokens(1)._2
+       |
+       |  val availableToMint = if (isCounterReset) dexyReserves / 100 else selfInR5
+       |   
+       |  val validAmount = dexyMinted <= availableToMint 
+       |   
+       |  val validSelfOutR4 = selfOutR4 == (if (isCounterReset) HEIGHT + tFree else selfInR4)     
+       |  val validSelfOutR5 = selfOutR5 == availableToMint - dexyMinted
+       |
+       |  val validBankBoxInOut = bankBoxIn.tokens(0)._1 == bankNFT && bankBoxOut.tokens(0)._1 == bankNFT
+       |  val validLpBox = lpBox.tokens(0)._1 == lpNFT
+       |  val validSelfOut = selfOut.tokens == SELF.tokens && // NFT preserved
+       |                     selfOut.propositionBytes == SELF.propositionBytes && // script preserved
+       |                     selfOut.value > SELF.value && validSelfOutR5 && validSelfOutR4  
+       |
+       |  sigmaProp(validAmount && validBankBoxInOut && validLpBox && validSelfOut)
+       |  
        |}
        |""".stripMargin
 
@@ -279,6 +347,10 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
   val bankErgoTree = ScriptUtil.compile(Map(), bankScript)
   val bankAddress = getStringFromAddress(getAddressFromErgoTree(bankErgoTree))
   println(bankAddress)
+
+  val freeMintErgoTree = ScriptUtil.compile(Map(), freeMintScript)
+  val freeMintAddress = getStringFromAddress(getAddressFromErgoTree(freeMintErgoTree))
+  println(freeMintAddress)
 
   val lpErgoTree = ScriptUtil.compile(Map(), lpScript)
   val lpAddress = getStringFromAddress(getAddressFromErgoTree(lpErgoTree))
