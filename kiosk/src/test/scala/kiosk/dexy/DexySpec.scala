@@ -80,6 +80,11 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  val T_arb = 30 // 30 blocks = 1 hour
        |  val thresholdPercent = 101 // 101% or more value (of LP in terms of OraclePool) will trigger action
        |  
+       |  val feeNum = 5
+       |  val feeDenom = 1000 
+       |  // actual fee ratio is feeNum / feeDenom
+       |  // example if feeNum = 5 and feeDenom = 1000 then fee = 0.005 = 0.5 %
+       |  
        |  val oracleBox = CONTEXT.dataInputs(0) // oracle-pool (v1 and v2) box containing rate in R4
        |  val lpBox = CONTEXT.dataInputs(1)
        |  val bankBoxIn = INPUTS(0)
@@ -97,7 +102,9 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |
        |  val isCounterReset = HEIGHT > selfInR4
        |  
-       |  val oracleRate = oracleBox.R4[Long].get // can assume always > 0 (ref oracle pool contracts) NanoErgs per USD
+       |  val oracleRateWithoutFee = oracleBox.R4[Long].get // can assume always > 0 (ref oracle pool contracts) NanoErgs per USD
+       |  val oracleRate = oracleRateWithoutFee * (feeNum + feeDenom) / feeDenom 
+       |  
        |  val lpReservesX = lpBox.value
        |  val lpReservesY = lpBox.tokens(2)._2 // dexyReserves
        |  val lpRate = lpReservesX / lpReservesY
@@ -152,6 +159,11 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}")
        |  val t_free = 100
        |  
+       |  val feeNum = 10
+       |  val feeDenom = 1000 
+       |  // actual fee ratio is feeNum / feeDenom
+       |  // example if feeNum = 10 and feeDenom = 1000 then fee = 0.01 = 1 %
+       |
        |  val oracleBox = CONTEXT.dataInputs(0) // oracle-pool (v1 and v2) box containing rate in R4
        |  val lpBox = CONTEXT.dataInputs(1)
        |  val bankBoxIn = INPUTS(0)
@@ -169,7 +181,9 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |
        |  val isCounterReset = HEIGHT > selfInR4
        |  
-       |  val oracleRate = oracleBox.R4[Long].get // can assume always > 0 (ref oracle pool contracts) NanoErgs per USD
+       |  val oracleRateWithoutFee = oracleBox.R4[Long].get // can assume always > 0 (ref oracle pool contracts) NanoErgs per USD
+       |  val oracleRate = oracleRateWithoutFee * (feeNum + feeDenom) / feeDenom 
+       |
        |  val lpReservesX = lpBox.value
        |  val lpReservesY = lpBox.tokens(2)._2 // dexyReserves
        |  val lpRate = lpReservesX / lpReservesY
@@ -225,8 +239,12 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |     
        |    // constants
        |    val threshold = 3 // error threshold in crossTrackerLow
-       |    val feeNum = 3 // 0.3 % 
+       |    val feeNum = 3 // 0.3 % if feeDenom is 1000
        |    val feeDenom = 1000
+       |    
+       |    // the value feeNum / feeDenom is the fraction of fee
+       |    // for example if feeNum = 3 and feeDenom = 1000 then fee is 0.003 = 0.3%
+       |    
        |    val minStorageRent = 10000000L  // this many number of nanoErgs are going to be permanently locked
        |    
        |    val successor = OUTPUTS(0) // copy of this box after exchange
@@ -246,8 +264,8 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |
        |    val validSuccessorScript = successor.propositionBytes == SELF.propositionBytes
        |    
-       |    val preservedLpNFT     = lpNFT1 == lpNFT0
-       |    val validLpBox              = reservedLP1._1 == reservedLP0._1
+       |    val preservedLpNFT       = lpNFT1 == lpNFT0
+       |    val validLpBox           = reservedLP1._1 == reservedLP0._1
        |    val validY               = tokenY1._1 == tokenY0._1
        |    val validSupplyLP1       = supplyLP1 >= 0
        |       
