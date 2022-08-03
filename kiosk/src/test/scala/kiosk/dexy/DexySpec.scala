@@ -266,27 +266,33 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    // 0 LP            |  LP            |   Oracle
        |    // 1 Bank          |  Bank          |
        |    // 2 Intervention  |  Intervention  |
+       |    // 3 Tracking Box  |  Tracking Box  |
        |
        |    //   Swap
        |    //   Input         |  Output        |   Data-Input 
        |    // -----------------------------------------------
        |    // 0 LP            |  LP            |   Oracle
+       |    // 1 Tracking Box  |  Tracking Box  |    
        |
        |    //   Redeem LP tokens
        |    //   Input         |  Output        |   Data-Input 
        |    // -----------------------------------------------
        |    // 0 LP            |  LP            |   Oracle
+       |    // 1 Tracking Box  |  Tracking Box  |
        |
        |    //   Mint LP tokens
        |    //   Input         |  Output        |   Data-Input 
        |    // -----------------------------------------------
        |    // 0 LP            |  LP            |   Oracle
+       |    // 1 Tracking Box  |  Tracking Box  |
        |
        |    val selfOutIndex = 0
        |    val oracleBoxIndex = 0
+       |    val trackingBoxInIndex = getVar[Int](0).get
+       |    
+       |    val trackingBox = INPUTS(trackingBoxInIndex)
        |     
        |    // constants
-       |    val threshold = 3 // error threshold in crossTrackerLow
        |    val feeNum = 3 // 0.3 % if feeDenom is 1000
        |    val feeDenom = 1000
        |    
@@ -298,6 +304,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    val successor = OUTPUTS(selfOutIndex) // copy of this box after exchange
        |    val oracleBox = CONTEXT.dataInputs(oracleBoxIndex) // oracle pool box
        |    val validOraclePoolBox = oracleBox.tokens(0)._1 == fromBase64("${Base64.encode(oracleNFT.decodeHex)}") // to identify oracle pool box 
+       |    val validTrackingBox = trackingBox.tokens(0)._1 == fromBase64("${Base64.encode(trackingNFT.decodeHex)}") // to identify tracking box
        |    
        |    val lpNFT0    = SELF.tokens(0)
        |    val reservedLP0 = SELF.tokens(1)
@@ -328,30 +335,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    val reservesY1 = tokenY1._2
        |
        |    val oracleRateXY = oracleBox.R4[Long].get 
-       |    val lpRateXY0 = reservesX0 / reservesY0  // we can assume that reservesY0 > 0 (since at least one token must exist) 
-       |    val lpRateXY1 = reservesX1 / reservesY1  // we can assume that reservesY1 > 0 (since at least one token must exist)
-       |    val isCrossing = (lpRateXY0 - oracleRateXY) * (lpRateXY1 - oracleRateXY) < 0 // if (and only if) oracle pool rate falls in between, then this will be negative
-       |     
-       |    val crossTrackerLowIn = SELF.R5[Int].get
-       |    val crossTrackerLowOut = successor.R5[Int].get
-       |    
-       |    val crossTrackerHighIn = SELF.R6[Int].get
-       |    val crossTrackerHighOut = successor.R6[Int].get
-       |    
-       |    val validCrossCounter = {
-       |      if (isCrossing) {
-       |        if (lpRateXY1 > oracleRateXY) {
-       |          crossTrackerLowOut >= HEIGHT - threshold &&
-       |          crossTrackerHighOut == ${Long.MaxValue}L 
-       |        } else {
-       |          crossTrackerHighOut >= HEIGHT - threshold &&
-       |          crossTrackerLowOut == ${Long.MaxValue}L
-       |        }
-       |      } else {
-       |        crossTrackerLowOut == crossTrackerLowIn &&
-       |        crossTrackerHighOut == crossTrackerHighIn 
-       |      }
-       |    } 
+       |    val lpRateXY0 = reservesX0 / reservesY0  // we can assume that reservesY0 > 0 (since at least one token must exist)
        |     
        |    val validRateForRedeemingLP = oracleRateXY > lpRateXY0 * 98 / 100 // lpRate must be >= 0.98 * oracleRate // these parameters need to be tweaked
        |    // Do we need above if we also have the tracking contract?
@@ -389,20 +373,81 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |            else validRedemption
        |
        |    sigmaProp(
-       |        validSupplyLP1 &&
+       |        validSupplyLP1       &&
        |        validSuccessorScript &&
-       |        validOraclePoolBox &&
-       |        preservedLpNFT &&
-       |        validLpBox &&
-       |        validY &&
-       |        noMoreTokens &&
-       |        validAction && 
-       |        validStorageRent && 
-       |        validCrossCounter
+       |        validOraclePoolBox   &&
+       |        validTrackingBox     && 
+       |        preservedLpNFT       &&
+       |        validLpBox           &&
+       |        validY               &&
+       |        noMoreTokens         &&
+       |        validAction          && 
+       |        validStorageRent  
        |    )
        |}
        |""".stripMargin
 
+  val trackingScript =
+    s"""{
+       |    val threshold = 3 // error threshold in crossTrackerLow
+       |    
+       |    val oracleBoxIndex = 0
+       |    val lpBoxInIndex = 0
+       |    val lpBoxOutIndex = 0
+       |    val selfOutIndex = getVar[Int](0).get
+       |
+       |    val lpBoxIn = INPUTS(lpBoxInIndex)
+       |    val lpBoxOut = OUTPUTS(lpBoxOutIndex)
+       |    val oracleBox = CONTEXT.dataInputs(oracleBoxIndex)
+       |    val successor = OUTPUTS(selfOutIndex)
+       |    
+       |    val tokenY0     = lpBoxIn.tokens(2)
+       |    val tokenY1     = lpBoxOut.tokens(2)
+       |    
+       |    val oracleRateXY = oracleBox.R4[Long].get
+       |    
+       |    val reservesX0 = lpBoxIn.value
+       |    val reservesY0 = tokenY0._2
+       |    val reservesX1 = lpBoxOut.value
+       |    val reservesY1 = tokenY1._2
+       |    val lpRateXY0 = reservesX0 / reservesY0  // we can assume that reservesY0 > 0 (since at least one token must exist)
+       |    val lpRateXY1 = reservesX1 / reservesY1  // we can assume that reservesY1 > 0 (since at least one token must exist)
+       |    val isCrossing = (lpRateXY0 - oracleRateXY) * (lpRateXY1 - oracleRateXY) < 0 // if (and only if) oracle pool rate falls in between, then this will be negative
+       |    
+       |    // cross tracking start
+       |    val crossTrackerLowIn = lpBoxIn.R5[Int].get // ToDo: move to this box from LP box
+       |    val crossTrackerLowOut = lpBoxOut.R5[Int].get // ToDo: move to this box from LP box
+       |    
+       |    val crossTrackerHighIn = lpBoxIn.R6[Int].get // ToDo: move to this box from LP box
+       |    val crossTrackerHighOut = lpBoxOut.R6[Int].get // ToDo: move to this box from LP box
+       |    
+       |    // ToDo: add custom tracker logic 
+       |    
+       |    val validCrossCounter = {
+       |      if (isCrossing) {
+       |        if (lpRateXY1 > oracleRateXY) {
+       |          crossTrackerLowOut >= HEIGHT - threshold &&
+       |          crossTrackerHighOut == ${Long.MaxValue}L 
+       |        } else {
+       |          crossTrackerHighOut >= HEIGHT - threshold &&
+       |          crossTrackerLowOut == ${Long.MaxValue}L
+       |        }
+       |      } else {
+       |        crossTrackerLowOut == crossTrackerLowIn &&
+       |        crossTrackerHighOut == crossTrackerHighIn 
+       |      }
+       |    } 
+       |    // cross tracking end
+       | 
+       |    val validLp = lpBoxIn.tokens(0)._1 == fromBase64("${Base64.encode(lpNFT.decodeHex)}") // to identify LP box
+       |    // this box can only be spent with LP and similarly LP can only be spent with this box.
+       |    
+       |    val validOraclePoolBox = oracleBox.tokens(0)._1 == fromBase64("${Base64.encode(oracleNFT.decodeHex)}") // to identify oracle pool box
+       |    val validSuccessor = successor.tokens == SELF.tokens && successor.propositionBytes == SELF.propositionBytes  
+       |    
+       |    sigmaProp(validSuccessor && validLp && validCrossCounter && validOraclePoolBox) // probably validOraclePoolBox is not needed as its already in LP
+       |}
+      |""".stripMargin
   val interventionScript =
     s"""{  
        |  
@@ -519,6 +564,12 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
   val lpAddress = getStringFromAddress(getAddressFromErgoTree(lpErgoTree))
   println(s"LP: $lpAddress")
   println(lpScript)
+  println()
+
+  val trackingErgoTree = ScriptUtil.compile(Map(), trackingScript)
+  val trackingAddress = getStringFromAddress(getAddressFromErgoTree(trackingErgoTree))
+  println(s"Tracking: $trackingAddress")
+  println(trackingScript)
   println()
 
   val interventionErgoTree = ScriptUtil.compile(Map(), interventionScript)
