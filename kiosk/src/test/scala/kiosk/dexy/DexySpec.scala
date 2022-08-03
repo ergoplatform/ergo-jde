@@ -443,11 +443,12 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    // this box can only be spent with LP and similarly LP can only be spent with this box.
        |    
        |    val validOraclePoolBox = oracleBox.tokens(0)._1 == fromBase64("${Base64.encode(oracleNFT.decodeHex)}") // to identify oracle pool box
-       |    val validSuccessor = successor.tokens == SELF.tokens && successor.propositionBytes == SELF.propositionBytes  
+       |    val validSuccessor = successor.tokens == SELF.tokens && successor.propositionBytes == SELF.propositionBytes && SELF.value <= successor.value
        |    
        |    sigmaProp(validSuccessor && validLp && validCrossCounter && validOraclePoolBox) // probably validOraclePoolBox is not needed as its already in LP
        |}
-      |""".stripMargin
+       |""".stripMargin
+
   val interventionScript =
     s"""{  
        |  
@@ -505,13 +506,14 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  val validOraclePoolBox = oracleBox.tokens(0)._1 == oracleNFT 
        |  val validLpBox = lpBoxIn.tokens(0)._1 == lpNFT
        |  
-       |  val validSuccessor = successor.propositionBytes == SELF.propositionBytes &&
-       |                       successor.tokens == SELF.tokens &&
-       |                       successor.value == SELF.value &&
+       |  val validSuccessor = successor.propositionBytes == SELF.propositionBytes  &&
+       |                       successor.tokens == SELF.tokens                      &&
+       |                       successor.value == SELF.value                        &&
        |                       successor.creationInfo._1 >= HEIGHT - buffer
        |  
        |  val validBankBoxIn = bankBoxIn.tokens(0)._1 == bankNFT 
-       |  val validBankBoxOut = bankBoxOut.tokens(0) == bankBoxIn.tokens(0) &&
+       |  
+       |  val validBankBoxOut = bankBoxOut.tokens(0) == bankBoxIn.tokens(0)        &&
        |                        bankBoxOut.tokens(1)._1 == bankBoxIn.tokens(1)._1
        |  
        |  val validGap = lastIntervention < HEIGHT - T
@@ -525,17 +527,17 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |                  
        |  val lpRateXYOutTimes100 = lpRateXYOut * 100
        |  
-       |  val validSwap = lpRateXYOutTimes100 >= oracleRateXY * 105 && // new rate must be >= 1.05 times oracle rate
-       |                  lpRateXYOutTimes100 <= oracleRateXY * 110 && // new rate must be <= 1.1 times oracle rate
-       |                  deltaBankErgs <= deltaLpX && // ergs reduced in bank box must be <= ergs gained in LP 
-       |                  deltaBankTokens >= deltaLpY && // tokens gained in bank box must be >= tokens reduced in LP 
-       |                  validBankBoxIn &&
-       |                  validBankBoxOut &&
-       |                  validSuccessor &&
-       |                  validLpBox &&
-       |                  validOraclePoolBox &&
-       |                  validThreshold &&
-       |                  validLpIn && 
+       |  val validSwap = lpRateXYOutTimes100 >= oracleRateXY * 105   && // new rate must be >= 1.05 times oracle rate
+       |                  lpRateXYOutTimes100 <= oracleRateXY * 110   && // new rate must be <= 1.1 times oracle rate
+       |                  deltaBankErgs <= deltaLpX                   && // ergs reduced in bank box must be <= ergs gained in LP 
+       |                  deltaBankTokens >= deltaLpY                 && // tokens gained in bank box must be >= tokens reduced in LP 
+       |                  validBankBoxIn                              &&
+       |                  validBankBoxOut                             &&
+       |                  validSuccessor                              &&
+       |                  validLpBox                                  &&
+       |                  validOraclePoolBox                          &&
+       |                  validThreshold                              &&
+       |                  validLpIn                                   && 
        |                  validGap
        |   
        |  sigmaProp(validSwap)
