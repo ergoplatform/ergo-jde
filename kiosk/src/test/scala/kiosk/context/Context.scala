@@ -14,8 +14,8 @@ object Context extends App {
        |   
        |   val validSpend = SELF.propositionBytes == selfOut.propositionBytes && 
        |                    correctHash
-       |                       
-       |   sigmaProp(validSpend)
+       |   val prop = sigmaProp(validSpend)
+       |   sigmaProp(hash == prop.propBytes) || prop 
        |}
        |""".stripMargin
   lazy val ergoTree = ScriptUtil.compile(Map(), script)
