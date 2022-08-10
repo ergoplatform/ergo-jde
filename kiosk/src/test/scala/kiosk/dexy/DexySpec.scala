@@ -460,7 +460,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |        // Then the third param (tracker height) will be set when oracle pool rate becomes <= 95% of LP rate 
        |        // and it will be reset to Long.MaxValue when that rate becomes > than 95% of LP rate
        |        // 
-       |        // Let oracle pool rate be P and LP rate at input be L0  and at output be L1
+       |        // Let oracle pool rate be P and LP rate at input be L0 and at output be L1
        |        // Let N and D denote num and denom respectively. Then we can use the following table
        |        // 
        |        // EVENT    | isBelow | INPUT       | OUTPUT
@@ -478,10 +478,10 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |        val y1 = num * lpRateXY1
        |        
        |        val trigger = ((isBelowIn && x > y0 && x <= y1) || (!isBelowIn && x < y0 && x >= y1)) && heightOut >= HEIGHT - threshold && heightOut <= HEIGHT
-       |        val preserve = ((x <= y0 && x <= y1) || (x >= y0 && x >= y1)) && heightIn == heightOut
+       |        val preserve = ((x <= y0 && x <= y1) || (x >= y0 && x >= y1)) && heightIn == heightOut  
        |        val reset = (isBelowIn && x < y0 && x >= y1) || (!isBelowIn && x > y0 && x <= y1) && heightOut == ${Long.MaxValue}L   
-       |        
-       |        val correctHeight = trigger || preserve || reset
+       |        // ToDo preserve may have a bug due to >= / <= 
+       |        val correctHeight = trigger || preserve || reset  
        |        
        |        numDenomIn == numDenomOut && // 1st and 2nd params preserved
        |        isBelowIn == isBelowOut   && // 4th param preserved
