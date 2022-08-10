@@ -422,16 +422,16 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    // num is numerator, denom is denominator
        |    // height is the height at which the event was "activated" (will store Long.MaxValue once deactivated)
        |    // isBelow tells us if the tracking should be for "lower" or "higher"
-       |    // Let r be the ration "oracle pool rate" / "LP rate", where the term "rate" denotes "Ergs per dexy"
+       |    // Let r be the ratio "oracle pool rate" / "LP rate", where the term "rate" denotes "Ergs per dexy"
        |    // Now, if "isBelow" is true, then the tracker will be activated (i.e., will be set to the current height) when r goes 
        |    // below num/denom and will continue to be so as long as r remains below num/denom. 
        |    // Once r goes above num/denom, this tracker will be set to Long.MaxValue
        |    
        |    // tracking will have following elements
        |    // index | num | denom | height | isBelow
-       |    // 0     | 95  | 100   | _      | true
-       |    // 1     | 98  | 100   | _      | true
-       |    // 2     | 1   | 1     | _      | true (not needed yet)  
+       |    // 0     | 95  | 100   | _      | true     (for extracting to future, burn)
+       |    // 1     | 98  | 100   | _      | true     (for arbitrage mint)
+       |    // 2     | 1   | 1     | _      | true     (not needed yet)  
        |    
        |
        |    
