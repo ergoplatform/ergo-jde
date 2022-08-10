@@ -404,15 +404,94 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    val tokenY0     = lpBoxIn.tokens(2)
        |    val tokenY1     = lpBoxOut.tokens(2)
        |    
-       |    val oracleRateXY = oracleBox.R4[Long].get
+       |    val validLp = lpBoxIn.tokens(0)._1 == fromBase64("${Base64.encode(lpNFT.decodeHex)}") // to identify LP box
+       |    // this box can only be spent with LP and similarly LP can only be spent with this box.
        |    
+       |    val validOraclePoolBox = oracleBox.tokens(0)._1 == fromBase64("${Base64.encode(oracleNFT.decodeHex)}") // to identify oracle pool box
+       |    val validSuccessor = successor.tokens == SELF.tokens && successor.propositionBytes == SELF.propositionBytes && SELF.value <= successor.value
+       |
+       |    val oracleRateXY = oracleBox.R4[Long].get
        |    val reservesX0 = lpBoxIn.value
        |    val reservesY0 = tokenY0._2
        |    val reservesX1 = lpBoxOut.value
        |    val reservesY1 = tokenY1._2
        |    val lpRateXY0 = reservesX0 / reservesY0  // we can assume that reservesY0 > 0 (since at least one token must exist)
        |    val lpRateXY1 = reservesX1 / reservesY1  // we can assume that reservesY1 > 0 (since at least one token must exist)
-       |    val isCrossing = (lpRateXY0 - oracleRateXY) * (lpRateXY1 - oracleRateXY) < 0 // if (and only if) oracle pool rate falls in between, then this will be negative
+       |
+       |    // R4 contains a tuple of type (Int, Int), (Long, Boolean). Let these be ((num, denom), (height, isBelow))
+       |    // num is numerator, denom is denominator
+       |    // height is the height at which the event was "activated" (will store Long.MaxValue once deactivated)
+       |    // isBelow tells us if the tracking should be for "lower" or "higher"
+       |    // Let r be the ration "oracle pool rate" / "LP rate", where the term "rate" denotes "Ergs per dexy"
+       |    // Now, if "isBelow" is true, then the tracker will be activated (i.e., will be set to the current height) when r goes 
+       |    // below num/denom and will continue to be so as long as r remains below num/denom. 
+       |    // Once r goes above num/denom, this tracker will be set to Long.MaxValue
+       |    
+       |    // tracking will have following elements
+       |    // index | num | denom | height | isBelow
+       |    // 0     | 95  | 100   | _      | true
+       |    // 1     | 98  | 100   | _      | true
+       |    // 2     | 1   | 1     | _      | true (not needed yet)  
+       |    
+       |
+       |    
+       |    val inTrackers = SELF.R4[Coll[((Int, Int), (Long, Boolean))]].get
+       |    val outTrackers = successor.R4[Coll[((Int, Int), (Long, Boolean))]].get
+       |    val indices = inTrackers.indices
+       |    
+       |    val validTracking = indices.forall(
+       |      { (index: Int) =>
+       |        val inTracker = inTrackers(index)
+       |        val outTracker = outTrackers(index)
+       |        
+       |        val numDenomIn = inTracker._1
+       |        val numDenomOut = outTracker._1
+       |        
+       |        val isBelowIn = inTracker._2._2
+       |        val isBelowOut = outTracker._2._2
+       |
+       |        val heightIn = inTracker._2._1
+       |        val heightOut = outTracker._2._1
+       |        
+       |        val num = numDenomIn._1     // numerator
+       |        val denom = numDenomIn._2   // denominator
+       |        
+       |        // For a ratio of 95%, set num to 95 and denom to 100 (equivalently 19, 20), and set fourth parameter to true
+       |        // Then the third param (tracker height) will be set when oracle pool rate becomes <= 95% of LP rate 
+       |        // and it will be reset to Long.MaxValue when that rate becomes > than 95% of LP rate
+       |        // 
+       |        // Let oracle pool rate be P and LP rate at input be L0  and at output be L1
+       |        // Let N and D denote num and denom respectively. Then we can use the following table
+       |        // 
+       |        // EVENT    | isBelow | INPUT       | OUTPUT
+       |        // ---------+---------+-------------+-----------
+       |        // trigger  | true    | P/L0 > N/D  | P/L1 <= N/D 
+       |        // preserve | true    | P/L0 <= N/D | P/L1 <= N/D 
+       |        // reset    | true    | P/L0 < N/D  | P/L1 >= N/D
+       |        // ---------+---------+-------------+------------
+       |        // trigger  | false   | P/L0 < N/D  | P/L1 >= N/D 
+       |        // preserve | false   | P/L0 >= N/D | P/L1 >= N/D 
+       |        // reset    | false   | P/L0 > N/D  | P/L1 <= N/D 
+       |        
+       |        val x = oracleRateXY * denom
+       |        val y0 = num * lpRateXY0
+       |        val y1 = num * lpRateXY1
+       |        
+       |        val trigger = ((isBelowIn && x > y0 && x <= y1) || (!isBelowIn && x < y0 && x >= y1)) && heightOut >= HEIGHT - threshold && heightOut <= HEIGHT
+       |        val preserve = ((x <= y0 && x <= y1) || (x >= y0 && x >= y1)) && heightIn == heightOut
+       |        val reset = (isBelowIn && x < y0 && x >= y1) || (!isBelowIn && x > y0 && x <= y1) && heightOut == ${Long.MaxValue}L   
+       |        
+       |        val correctHeight = trigger || preserve || reset
+       |        
+       |        numDenomIn == numDenomOut && // 1st and 2nd params preserved
+       |        isBelowIn == isBelowOut   && // 4th param preserved
+       |        correctHeight
+       |      }
+       |    )
+       |    
+       |    /* Old crossing counter. Kept for checking 
+       |    val isCrossing = (lpRateXY0 - oracleRateXY) * (lpRateXY1 - oracleRateXY) < 0 
+       |    // if (and only if) oracle pool rate falls in between, then this will be negative
        |    
        |    // cross tracking start
        |    val crossTrackerLowIn = lpBoxIn.R5[Int].get // ToDo: move to this box from LP box
@@ -438,14 +517,9 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |      }
        |    } 
        |    // cross tracking end
-       | 
-       |    val validLp = lpBoxIn.tokens(0)._1 == fromBase64("${Base64.encode(lpNFT.decodeHex)}") // to identify LP box
-       |    // this box can only be spent with LP and similarly LP can only be spent with this box.
+       |    */
        |    
-       |    val validOraclePoolBox = oracleBox.tokens(0)._1 == fromBase64("${Base64.encode(oracleNFT.decodeHex)}") // to identify oracle pool box
-       |    val validSuccessor = successor.tokens == SELF.tokens && successor.propositionBytes == SELF.propositionBytes && SELF.value <= successor.value
-       |    
-       |    sigmaProp(validSuccessor && validLp && validCrossCounter && validOraclePoolBox) // probably validOraclePoolBox is not needed as its already in LP
+       |    sigmaProp(validSuccessor && validLp && validTracking && validOraclePoolBox) // probably validOraclePoolBox is not needed as its already in LP
        |}
        |""".stripMargin
 
@@ -457,7 +531,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  //   Input         |  Output        |   Data-Input 
        |  // -----------------------------------------------
        |  // 0 LP            |  LP            |   Oracle
-       |  // 1 Bank          |  Bank          |
+       |  // 1 Bank          |  Bank          |   Tracking
        |  // 2 Intervention  |  Intervention  |
        |  
        |  val lpInIndex = 0
@@ -466,6 +540,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  val bankOutIndex = 1
        |  val selfOutIndex = 2    // SELF should be third input
        |  val oracleBoxIndex = 0 
+       |  val trackingBoxIndex = 1
        |
        |  val lastIntervention = SELF.creationInfo._1
        |  val buffer = 3 // error margin in height
@@ -478,6 +553,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  val thresholdPercent = 98 // 98% or less value (of LP in terms of OraclePool) will trigger action (ensure less than 100) 
        |  
        |  val oracleBox = CONTEXT.dataInputs(oracleBoxIndex)
+       |  val trackingBox = CONTEXT.dataInputs(trackingBoxIndex)
        |  
        |  val lpBoxIn = INPUTS(lpInIndex)
        |  val bankBoxIn = INPUTS(bankInIndex)
@@ -522,8 +598,12 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  val deltaBankErgs = bankBoxIn.value - bankBoxOut.value
        |  val deltaLpX = reservesXOut - reservesXIn
        |  val deltaLpY = reservesYIn - reservesYOut
-       |
-       |  val validLpIn = lpBoxIn.R5[Int].get < HEIGHT - T_int // at least T_int blocks have passed since the tracking started
+       |  
+       |  val trackingTupleArray = trackingBox.R4[Coll[((Int, Int), (Long, Boolean))]].get
+       |  
+       |  val trackingHeight = trackingTupleArray(1)._2._1 // second element of tracking array has 98%
+       |  
+       |  val validLpIn = trackingHeight < HEIGHT - T_int // at least T_int blocks have passed since the tracking started
        |                  
        |  val lpRateXYOutTimes100 = lpRateXYOut * 100
        |  
