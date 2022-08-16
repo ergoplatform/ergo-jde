@@ -465,22 +465,21 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |        // 
        |        // EVENT    | isBelow | INPUT       | OUTPUT
        |        // ---------+---------+-------------+-----------
-       |        // trigger  | true    | P/L0 > N/D  | P/L1 <= N/D 
-       |        // preserve | true    | P/L0 <= N/D | P/L1 <= N/D 
-       |        // reset    | true    | P/L0 < N/D  | P/L1 >= N/D
+       |        // trigger  | true    | P/L0 >= N/D | P/L1 <  N/D 
+       |        // preserve | true    | P/L0 <  N/D | P/L1 <  N/D 
+       |        // reset    | true    | P/L0 <  N/D | P/L1 >= N/D (reverse of 1st row)
        |        // ---------+---------+-------------+------------
-       |        // trigger  | false   | P/L0 < N/D  | P/L1 >= N/D 
-       |        // preserve | false   | P/L0 >= N/D | P/L1 >= N/D 
-       |        // reset    | false   | P/L0 > N/D  | P/L1 <= N/D 
+       |        // trigger  | false   | P/L0 <= N/D | P/L1 >  N/D 
+       |        // preserve | false   | P/L0 >  N/D | P/L1 >  N/D 
+       |        // reset    | false   | P/L0 >  N/D | P/L1 <= N/D (reverse of 1st row) 
        |        
        |        val x = oracleRateXY * denom
        |        val y0 = num * lpRateXY0
        |        val y1 = num * lpRateXY1
        |        
-       |        val trigger = ((isBelowIn && x > y0 && x <= y1) || (!isBelowIn && x < y0 && x >= y1)) && heightOut >= HEIGHT - threshold && heightOut <= HEIGHT
-       |        val preserve = ((x <= y0 && x <= y1) || (x >= y0 && x >= y1)) && heightIn == heightOut  
+       |        val trigger = ((isBelowIn && x >= y0 && x < y1) || (!isBelowIn && x <= y0 && x > y1)) && heightOut >= HEIGHT - threshold && heightOut <= HEIGHT
+       |        val preserve = ((x < y0 && x < y1) || (x > y0 && x > y1)) && heightIn == heightOut  
        |        val reset = (isBelowIn && x < y0 && x >= y1) || (!isBelowIn && x > y0 && x <= y1) && heightOut == ${Long.MaxValue}L   
-       |        // ToDo preserve may have a bug due to >= / <= 
        |        val correctHeight = trigger || preserve || reset  
        |        
        |        numDenomIn == numDenomOut && // 1st and 2nd params preserved
