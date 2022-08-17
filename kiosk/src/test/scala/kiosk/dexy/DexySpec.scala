@@ -43,6 +43,14 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  // 0 LP            |  LP            |   Oracle
        |  // 1 Bank          |  Bank          |
        |  // 2 Intervention  |  Intervention  |
+       |  // 3 Tracking Box  |  Tracking Box  |
+       |  // 
+       |  //   Extract for future
+       |  //   Input         |  Output        |   Data-Input 
+       |  // -----------------------------------------------
+       |  // 0 LP            |  LP            |   Oracle
+       |  // 1 FutureLock    |  FutureLock    |   Bank
+       |  // 2 Tracking Box  |  Tracking Box  |
        |  
        |  val selfOutIndex = 1        // 2nd output is self copy
        |  val mintInIndex = 0         // 1st input is mint or LP box
@@ -286,11 +294,32 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    // 0 LP            |  LP            |   Oracle
        |    // 1 Tracking Box  |  Tracking Box  |
        |
+       |    //   Extract to future
+       |    //   Input         |  Output        |   Data-Input 
+       |    // -----------------------------------------------
+       |    // 0 LP            |  LP            |   Oracle
+       |    // 1 Extract       |  Extract       |   Bank
+       |    // 2 Tracking Box  |  Tracking Box  |
+       |
+       |    //   Reverse Extract to future
+       |    //   Input         |  Output        |   Data-Input 
+       |    // -----------------------------------------------
+       |    // 0 LP            |  LP            |   Oracle
+       |    // 1 Extract       |  Extract       |   
+       |    // 2 Tracking Box  |  Tracking Box  |
+       |
+       |    
        |    val selfOutIndex = 0
        |    val oracleBoxIndex = 0
        |    val trackingBoxInIndex = getVar[Int](0).get
        |    
        |    val trackingBox = INPUTS(trackingBoxInIndex)
+       |
+       |    val interventionBoxIndex = 2 // ToDo: fix if possible, otherwise each tx needs at least 3 inputs (add dummy inputs for now)
+       |    val interventionBox = INPUTS(interventionBoxIndex) // see above comment ^ 
+       |     
+       |    val extractBoxIndex = 1
+       |    val extractBox = INPUTS(extractBoxIndex)  
        |     
        |    // constants
        |    val feeNum = 3 // 0.3 % if feeDenom is 1000
@@ -305,6 +334,8 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    val oracleBox = CONTEXT.dataInputs(oracleBoxIndex) // oracle pool box
        |    val validOraclePoolBox = oracleBox.tokens(0)._1 == fromBase64("${Base64.encode(oracleNFT.decodeHex)}") // to identify oracle pool box 
        |    val validTrackingBox = trackingBox.tokens(0)._1 == fromBase64("${Base64.encode(trackingNFT.decodeHex)}") // to identify tracking box
+       |    val validIntervention = interventionBox.tokens(0)._1 == fromBase64("${Base64.encode(interventionNFT.decodeHex)}") 
+       |    val validExtraction = extractBox.tokens(0)._1 == fromBase64("${Base64.encode(interventionNFT.decodeHex)}") 
        |    
        |    val lpNFT0    = SELF.tokens(0)
        |    val reservedLP0 = SELF.tokens(1)
@@ -345,7 +376,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    val deltaReservesY = reservesY1 - reservesY0
        |    
        |    // LP formulae below using UniSwap v2 (with initial token burning by bootstrapping with positive R4)
-       |    val validDepositing = {
+       |    val validMintLP = {
        |        val sharesUnlocked = min(
        |            deltaReservesX.toBigInt * supplyLP0 / reservesX0,
        |            deltaReservesY.toBigInt * supplyLP0 / reservesY0
@@ -365,23 +396,25 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |        else
        |            reservesX0.toBigInt * deltaReservesY * feeNum >= -deltaReservesX * (reservesY0.toBigInt * feeDenom + deltaReservesY * feeNum)
        |
-       |    val validAction =
+       |    val lpAction =
        |        if (deltaSupplyLP == 0)
        |            validSwap
        |        else
-       |            if (deltaReservesX > 0 && deltaReservesY > 0) validDepositing
+       |            if (deltaReservesX > 0 && deltaReservesY > 0) validMintLP
        |            else validRedemption
        |
+       |    val dexyAction = validIntervention || // intervention
+       |                     validExtraction // extract to future
        |    sigmaProp(
-       |        validSupplyLP1       &&
-       |        validSuccessorScript &&
-       |        validOraclePoolBox   &&
-       |        validTrackingBox     && 
-       |        preservedLpNFT       &&
-       |        validLpBox           &&
-       |        validY               &&
-       |        noMoreTokens         &&
-       |        validAction          && 
+       |        validSupplyLP1            &&
+       |        validSuccessorScript      &&
+       |        validOraclePoolBox        &&
+       |        validTrackingBox          && 
+       |        preservedLpNFT            &&
+       |        validLpBox                &&
+       |        validY                    &&
+       |        noMoreTokens              &&
+       |        (lpAction || dexyAction)  && 
        |        validStorageRent  
        |    )
        |}
@@ -419,19 +452,20 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    val lpRateXY1 = reservesX1 / reservesY1  // we can assume that reservesY1 > 0 (since at least one token must exist)
        |
        |    // R4 contains a tuple of type (Int, Int), (Long, Boolean). Let these be ((num, denom), (height, isBelow))
-       |    // num is numerator, denom is denominator
+       |    // num is numerator, denom is denominator. Let t = num/denom
        |    // height is the height at which the event was "activated" (will store Long.MaxValue once deactivated)
        |    // isBelow tells us if the tracking should be for "lower" or "higher"
        |    // Let r be the ratio "oracle pool rate" / "LP rate", where the term "rate" denotes "Ergs per dexy"
-       |    // Now, if "isBelow" is true, then the tracker will be activated (i.e., will be set to the current height) when r goes 
-       |    // below num/denom and will continue to be so as long as r remains below num/denom. 
-       |    // Once r goes above num/denom, this tracker will be set to Long.MaxValue
+       |    // Now, if "isBelow" is true, then the tracker will be activated (i.e., the 3rd element will be set to the current height) when r goes 
+       |    // below t and will continue to be so as long as r remains below t 
+       |    // Once r goes above t, this tracker will be set to Long.MaxValue (somewhat like an infinite value)
        |    
        |    // tracking will have following elements
        |    // index | num | denom | height | isBelow
-       |    // 0     | 95  | 100   | _      | true     (for extracting to future, burn)
-       |    // 1     | 98  | 100   | _      | true     (for arbitrage mint)
-       |    // 2     | 1   | 1     | _      | true     (not needed yet)  
+       |    // 0     | 95  | 100   | _      | true     (for extracting to future)
+       |    // 1     | 98  | 100   | _      | true     (for arbitrage mint, reversing extract to future)
+       |    // 2     | 99  | 100   | _      | true     (for extracting to future)  
+       |    // 3     | 101 | 100   | _      | false    (for extracting to future)  
        |    
        |
        |    
@@ -532,6 +566,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  // 0 LP            |  LP            |   Oracle
        |  // 1 Bank          |  Bank          |   Tracking
        |  // 2 Intervention  |  Intervention  |
+       |  // 3 Tracking Box  |  Tracking Box  |
        |  
        |  val lpInIndex = 0
        |  val lpOutIndex = 0
@@ -623,6 +658,75 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |}
        |""".stripMargin
 
+  val extractScript =
+    s"""|{
+        |
+        |   // This box (Future lock box, where "extract to future dexy coins stored)
+        |   // tokens(0): futureLockNFT 
+        |
+        |    //   Extract to future
+        |    //   Input         |  Output        |   Data-Input 
+        |    // -----------------------------------------------
+        |    // 0 LP            |  LP            |   Oracle (unused here)
+        |    // 1 Extract       |  Extract       |   Bank   (to check that bank is empty)
+        |    // 2 Tracking Box  |  Tracking Box  |
+        |
+        |    //   Reverse Extract to future
+        |    //   Input         |  Output        |   Data-Input 
+        |    // -----------------------------------------------
+        |    // 0 LP            |  LP            |   Oracle
+        |    // 1 Extract       |  Extract       |   
+        |    // 2 Tracking Box  |  Tracking Box  |
+        |    
+        |    // tracker#0 : Checks < 95%
+        |    // tracker#1 : Checks > 98%
+        |    
+        |    val trackingBoxInIndex = 2
+        |    val trackingBoxOutIndex = 2
+        |    
+        |    val trackingNFT = fromBase64("${Base64.encode(trackingNFT.decodeHex)}")
+        |    
+        |    val T_extract = 10 // blocks for which the rate is below 95%
+        |    val T_release = 2 // blocks for which the rate is above 101%
+        |    val buffer = 3 // allowable error in setting height due to congestion 
+        |    
+        |    // tracking box should record at least T_extract blocks of < 95%
+        |    val trackingBoxIn = INPUTS(0)
+        |    val trackingBoxOut = OUTPUTS(0)
+        |    
+        |    val validTracking = trackingBoxIn.tokens(0)._1 == trackingNFT
+        |    
+        |    val inTrackers = trackingBoxIn.R4[Coll[((Int, Int), (Long, Boolean))]].get
+        |    val outTrackers = trackingBoxOut.R4[Coll[((Int, Int), (Long, Boolean))]].get
+        |    
+        |    val inTracker0 = inTrackers(0)
+        |    val inTracker2 = inTrackers(2)
+        |    val inTracker3 = inTrackers(3)
+        |    
+        |    val outTracker1 = outTrackers(1)
+        |    val outTracker2 = outTrackers(2)
+        |    
+        |    // we can assume             inTrackers(0) = ((95, 100), (_, true))  (See tracking box) 
+        |    // similarly, we can assume  inTrackers(1) = ((98, 100), (_, true))  and 
+        |    //                           inTrackers(2) = ((99, 100), (_, true))
+        |     
+        |    val validExtract  = (HEIGHT - inTracker0._2._1) > T_extract && // at least T_extract blocks have passed after crossing below 95% 
+        |                        outTracker1._2._1 == ${Long.MaxValue}L && // 98 % tracker should be reset, i.e., set to INF  
+        |                        outTracker2._2._1 == inTracker2._2._1  // 99 % tracker should not be reset 
+        |                        // ToDo: add following check: bank is out of tokens 
+        |                        //       Ergs preserved in LP
+        |                        //       Dexy tokens taken from LP put only to this box
+        |
+        |    val validRelease  = HEIGHT - inTracker3._2._1 > T_release // at least T_release blocks have passed after crossing above 101%
+        |                        // ToDo: add following check: bank is out of tokens 
+        |                        //       Ergs preserved in LP
+        |                        //       Dexy tokens taken from this box only put in LP
+        |            
+        |            
+        |    sigmaProp(validExtract || validRelease)
+        |}
+        |""".stripMargin
+
   val bankErgoTree = ScriptUtil.compile(Map(), bankScript)
   val bankAddress = getStringFromAddress(getAddressFromErgoTree(bankErgoTree))
   println(s"Bank: $bankAddress")
@@ -651,6 +755,12 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
   val trackingAddress = getStringFromAddress(getAddressFromErgoTree(trackingErgoTree))
   println(s"Tracking: $trackingAddress")
   println(trackingScript)
+  println()
+
+  val extractErgoTree = ScriptUtil.compile(Map(), extractScript)
+  val extractAddress = getStringFromAddress(getAddressFromErgoTree(extractErgoTree))
+  println(s"Extract: $extractAddress")
+  println(extractScript)
   println()
 
   val interventionErgoTree = ScriptUtil.compile(Map(), interventionScript)
