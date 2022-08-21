@@ -14,6 +14,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
   val lpNFT = "361A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val trackingNFT = "261A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val interventionNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
+  val extractionNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A54" // TODO replace with actual
   val freeMintNFT = "061A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val arbitrageMintNFT = "961A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val bankNFT = "861A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
@@ -49,7 +50,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  //   Input         |  Output        |   Data-Input 
        |  // -----------------------------------------------
        |  // 0 LP            |  LP            |   Oracle
-       |  // 1 FutureLock    |  FutureLock    |   Bank
+       |  // 1 Extract       |  Extract       |   Bank
        |  // 2 Tracking Box  |  Tracking Box  |
        |  
        |  val selfOutIndex = 1        // 2nd output is self copy
@@ -335,7 +336,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    val validOraclePoolBox = oracleBox.tokens(0)._1 == fromBase64("${Base64.encode(oracleNFT.decodeHex)}") // to identify oracle pool box 
        |    val validTrackingBox = trackingBox.tokens(0)._1 == fromBase64("${Base64.encode(trackingNFT.decodeHex)}") // to identify tracking box
        |    val validIntervention = interventionBox.tokens(0)._1 == fromBase64("${Base64.encode(interventionNFT.decodeHex)}") 
-       |    val validExtraction = extractBox.tokens(0)._1 == fromBase64("${Base64.encode(interventionNFT.decodeHex)}") 
+       |    val validExtraction = extractBox.tokens(0)._1 == fromBase64("${Base64.encode(extractionNFT.decodeHex)}") 
        |    
        |    val lpNFT0    = SELF.tokens(0)
        |    val reservedLP0 = SELF.tokens(1)
@@ -659,10 +660,14 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |""".stripMargin
 
   val extractScript =
-    s"""|{
+    s"""|{   // ToDo: verify following
+        |    //   cannot change prop bytes for LP, Extract and Tracking box
+        |    //   cannot change tokens/nanoErgs in LP, extract and tracking box except what is permitted
+        |    //   all "validXyzBox" conditions are actually used everywhere
         |
-        |   // This box (Future lock box, where "extract to future dexy coins stored)
-        |   // tokens(0): futureLockNFT 
+        |    // This box (Extract (to future) box, where "extract to future" dexy coins stored)
+        |    // tokens(0): extractionNFT 
+        |    // tokens(1): Dexy tokens 
         |
         |    //   Extract to future
         |    //   Input         |  Output        |   Data-Input 
@@ -678,52 +683,81 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
         |    // 1 Extract       |  Extract       |   
         |    // 2 Tracking Box  |  Tracking Box  |
         |    
-        |    // tracker#0 : Checks < 95%
-        |    // tracker#1 : Checks > 98%
+        |    // tracker#0 : Tracks < 95%
+        |    // tracker#1 : Tracks < 98%
+        |    // tracker#2 : Tracks < 99%
+        |    
+        |    val lpBoxInIndex = 0
+        |    val lpBoxOutIndex = 0
+        |    
+        |    val selfOutIndex = 1
         |    
         |    val trackingBoxInIndex = 2
         |    val trackingBoxOutIndex = 2
+        |    val minTokens = 100 // if Dexy tokens less than this number in bank box, then bank is considered "empty"
         |    
         |    val trackingNFT = fromBase64("${Base64.encode(trackingNFT.decodeHex)}")
+        |    val bankNFT = fromBase64("${Base64.encode(bankNFT.decodeHex)}")
+        |    val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}")
         |    
         |    val T_extract = 10 // blocks for which the rate is below 95%
         |    val T_release = 2 // blocks for which the rate is above 101%
         |    val buffer = 3 // allowable error in setting height due to congestion 
         |    
         |    // tracking box should record at least T_extract blocks of < 95%
-        |    val trackingBoxIn = INPUTS(0)
-        |    val trackingBoxOut = OUTPUTS(0)
+        |    val trackingBoxIn = INPUTS(trackingBoxInIndex)
+        |    val trackingBoxOut = OUTPUTS(trackingBoxOutIndex)
         |    
-        |    val validTracking = trackingBoxIn.tokens(0)._1 == trackingNFT
+        |    val lpBoxIn = INPUTS(lpBoxInIndex)
+        |    val lpBoxOut = OUTPUTS(lpBoxInIndex)
+        |    
+        |    val successor = OUTPUTS(selfOutIndex)
+        |    val validSuccessor = successor.tokens(0)._1 == SELF.tokens(0)._1 &&  // NFT preserved
+        |                         successor.tokens(1)._1 == SELF.tokens(1)._1 &&  // Dexy token id preserved
+        |                         successor.propositionBytes == SELF.propositionBytes &&
+        |                         successor.value == SELF.value 
+        |                            
+        |    val deltaDexy = successor.tokens(1)._2 - SELF.tokens(1)._2 // can be +ve or -ve 
+        |    
+        |    val validBankBox = if (CONTEXT.dataInputs.size > 1) {
+        |      CONTEXT.dataInputs(1).tokens(0)._1 == bankNFT &&
+        |      CONTEXT.dataInputs(1).tokens(1)._2 <= minTokens
+        |    } else false
+        |    
+        |    val validLpBox = lpBoxIn.tokens(0)._1 == lpNFT                               && // Maybe this check not needed? (see LP box)
+        |                     lpBoxOut.tokens(0)._1 == lpBoxIn.tokens(0)._1               && // NFT preserved 
+        |                     lpBoxOut.tokens(1) == lpBoxIn.tokens(1)                     && // LP tokens preserved
+        |                     lpBoxOut.tokens(2)._1 == lpBoxIn.tokens(2)._1               && // Dexy token Id preserved
+        |                     lpBoxOut.tokens(2)._1 == SELF.tokens(1)._1                  && // Dexy token Id is same as tokens stored here
+        |                     lpBoxOut.tokens(2)._2 == (lpBoxIn.tokens(2)._2 + deltaDexy) && // Dexy token qty preserved
+        |                     lpBoxOut.value == lpBoxIn.value                             &&
+        |                     lpBoxOut.propositionBytes == lpBoxIn.propositionBytes  
+        |     
+        |    val validTrackingBox = trackingBoxIn.tokens(0)._1 == trackingNFT
         |    
         |    val inTrackers = trackingBoxIn.R4[Coll[((Int, Int), (Long, Boolean))]].get
         |    val outTrackers = trackingBoxOut.R4[Coll[((Int, Int), (Long, Boolean))]].get
         |    
-        |    val inTracker0 = inTrackers(0)
-        |    val inTracker2 = inTrackers(2)
-        |    val inTracker3 = inTrackers(3)
+        |    val inTracker0 = inTrackers(0) // < 95%
+        |    val inTracker2 = inTrackers(2) // < 99%
+        |    val inTracker3 = inTrackers(3) // > 101%
         |    
-        |    val outTracker1 = outTrackers(1)
-        |    val outTracker2 = outTrackers(2)
+        |    val outTracker1 = outTrackers(1) // < 98%
+        |    val outTracker2 = outTrackers(2) // < 99%
         |    
         |    // we can assume             inTrackers(0) = ((95, 100), (_, true))  (See tracking box) 
         |    // similarly, we can assume  inTrackers(1) = ((98, 100), (_, true))  and 
         |    //                           inTrackers(2) = ((99, 100), (_, true))
+        |    //                           inTrackers(3) = ((101, 100), (_, false))
         |     
-        |    val validExtract  = (HEIGHT - inTracker0._2._1) > T_extract && // at least T_extract blocks have passed after crossing below 95% 
-        |                        outTracker1._2._1 == ${Long.MaxValue}L && // 98 % tracker should be reset, i.e., set to INF  
-        |                        outTracker2._2._1 == inTracker2._2._1  // 99 % tracker should not be reset 
-        |                        // ToDo: add following check: bank is out of tokens 
-        |                        //       Ergs preserved in LP
-        |                        //       Dexy tokens taken from LP put only to this box
+        |    val validExtract  = (HEIGHT - inTracker0._2._1) > T_extract  && // at least T_extract blocks have passed after crossing below 95% 
+        |                        outTracker1._2._1 == ${Long.MaxValue}L   && // 98 % tracker should be reset, i.e., set to INF  
+        |                        outTracker2._2._1 == inTracker2._2._1    && // 99 % tracker should not be reset
+        |                        validBankBox 
         |
         |    val validRelease  = HEIGHT - inTracker3._2._1 > T_release // at least T_release blocks have passed after crossing above 101%
-        |                        // ToDo: add following check: bank is out of tokens 
-        |                        //       Ergs preserved in LP
-        |                        //       Dexy tokens taken from this box only put in LP
         |            
-        |            
-        |    sigmaProp(validExtract || validRelease)
+        |    sigmaProp(validTrackingBox && validSuccessor && validLpBox && (validExtract || validRelease))
         |}
         |""".stripMargin
 
