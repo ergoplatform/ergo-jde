@@ -258,8 +258,6 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    // This box: (LP box)
        |    //   R1 (value): X tokens in NanoErgs 
        |    //   R4: How many LP in circulation (long). This can be non-zero when bootstrapping, to consider the initial token burning in UniSwap v2
-       |    //   R5: Stores the height where oracle pool rate becomes lower than LP rate. Reset to Long.MaxValue when rate crossed back. Called crossTrackerLow
-       |    //   R6: Stores the height where oracle pool rate becomes higher than LP rate. Reset to Long.MaxValue when rate crossed back. Called crossTrackerHigh
        |    //   Tokens(0): LP NFT to uniquely identify NFT box. (Could we possibly do away with this?) 
        |    //   Tokens(1): LP tokens
        |    //   Tokens(2): Y tokens (Note that X tokens are NanoErgs (the value) 
@@ -370,7 +368,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    val lpRateXY0 = reservesX0 / reservesY0  // we can assume that reservesY0 > 0 (since at least one token must exist)
        |     
        |    val validRateForRedeemingLP = oracleRateXY > lpRateXY0 * 98 / 100 // lpRate must be >= 0.98 * oracleRate // these parameters need to be tweaked
-       |    // Do we need above if we also have the tracking contract?
+       |    // ToDo: Check if we still need above if we also have the tracking contract?
        |     
        |    val deltaSupplyLP  = supplyLP1 - supplyLP0
        |    val deltaReservesX = reservesX1 - reservesX0
@@ -522,36 +520,6 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |        correctHeight
        |      }
        |    )
-       |    
-       |    /* Old crossing counter. Kept for checking 
-       |    val isCrossing = (lpRateXY0 - oracleRateXY) * (lpRateXY1 - oracleRateXY) < 0 
-       |    // if (and only if) oracle pool rate falls in between, then this will be negative
-       |    
-       |    // cross tracking start
-       |    val crossTrackerLowIn = lpBoxIn.R5[Int].get // ToDo: move to this box from LP box
-       |    val crossTrackerLowOut = lpBoxOut.R5[Int].get // ToDo: move to this box from LP box
-       |    
-       |    val crossTrackerHighIn = lpBoxIn.R6[Int].get // ToDo: move to this box from LP box
-       |    val crossTrackerHighOut = lpBoxOut.R6[Int].get // ToDo: move to this box from LP box
-       |    
-       |    // ToDo: add custom tracker logic 
-       |    
-       |    val validCrossCounter = {
-       |      if (isCrossing) {
-       |        if (lpRateXY1 > oracleRateXY) {
-       |          crossTrackerLowOut >= HEIGHT - threshold &&
-       |          crossTrackerHighOut == ${Long.MaxValue}L 
-       |        } else {
-       |          crossTrackerHighOut >= HEIGHT - threshold &&
-       |          crossTrackerLowOut == ${Long.MaxValue}L
-       |        }
-       |      } else {
-       |        crossTrackerLowOut == crossTrackerLowIn &&
-       |        crossTrackerHighOut == crossTrackerHighIn 
-       |      }
-       |    } 
-       |    // cross tracking end
-       |    */
        |    
        |    sigmaProp(validSuccessor && validLp && validTracking && validOraclePoolBox) // probably validOraclePoolBox is not needed as its already in LP
        |}
