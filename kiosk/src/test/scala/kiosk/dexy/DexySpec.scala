@@ -518,12 +518,12 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |
        |    // R4 contains a tuple of type (Int, Int), (Int, Boolean). Let these be ((num, denom), (height, isBelow))
        |    // num is numerator, denom is denominator. Let t = num/denom
-       |    // height is the height at which the event was "activated" (will store Long.MaxValue once deactivated)
+       |    // height is the height at which the event was "activated" (will store Int.MaxValue once deactivated)
        |    // isBelow tells us if the tracking should be for "lower" or "higher"
        |    // Let r be the ratio "oracle pool rate" / "LP rate", where the term "rate" denotes "Ergs per dexy"
        |    // Now, if "isBelow" is true, then the tracker will be activated (i.e., the 3rd element will be set to the current height) when r goes 
        |    // below t and will continue to be so as long as r remains below t 
-       |    // Once r goes above t, this tracker will be set to Long.MaxValue (somewhat like an infinite value)
+       |    // Once r goes above t, this tracker will be set to Int.MaxValue (somewhat like an infinite value)
        |    
        |    // tracking will have following elements
        |    // index | num | denom | height | isBelow
@@ -557,7 +557,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |        
        |        // For a ratio of 95%, set num to 95 and denom to 100 (equivalently 19, 20), and set fourth parameter to true
        |        // Then the third param (tracker height) will be set when oracle pool rate becomes <= 95% of LP rate 
-       |        // and it will be reset to Long.MaxValue when that rate becomes > than 95% of LP rate
+       |        // and it will be reset to Int.MaxValue when that rate becomes > than 95% of LP rate
        |        // 
        |        // Let oracle pool rate be P and LP rate at input be L0 and at output be L1
        |        // Let N and D denote num and denom respectively. Then we can use the following table
