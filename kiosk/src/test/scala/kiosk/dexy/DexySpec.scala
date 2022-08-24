@@ -443,7 +443,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    //   tokens(0): Tracking NFT
        |    // 
        |    // REGISTERS
-       |    //   R4: [Coll[((Int, Int), (Long, Boolean))]] (explained below)
+       |    //   R4: [Coll[((Int, Int), (Int, Boolean))]] (explained below)
        |    // 
        |    // TRANSACTIONS (everywhere LP is spent)
        |    // [1] Intervention
@@ -516,7 +516,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    val lpRateXY0 = reservesX0 / reservesY0  // we can assume that reservesY0 > 0 (since at least one token must exist)
        |    val lpRateXY1 = reservesX1 / reservesY1  // we can assume that reservesY1 > 0 (since at least one token must exist)
        |
-       |    // R4 contains a tuple of type (Int, Int), (Long, Boolean). Let these be ((num, denom), (height, isBelow))
+       |    // R4 contains a tuple of type (Int, Int), (Int, Boolean). Let these be ((num, denom), (height, isBelow))
        |    // num is numerator, denom is denominator. Let t = num/denom
        |    // height is the height at which the event was "activated" (will store Long.MaxValue once deactivated)
        |    // isBelow tells us if the tracking should be for "lower" or "higher"
@@ -534,8 +534,8 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    
        |
        |    
-       |    val inTrackers = SELF.R4[Coll[((Int, Int), (Long, Boolean))]].get
-       |    val outTrackers = successor.R4[Coll[((Int, Int), (Long, Boolean))]].get
+       |    val inTrackers = SELF.R4[Coll[((Int, Int), (Int, Boolean))]].get
+       |    val outTrackers = successor.R4[Coll[((Int, Int), (Int, Boolean))]].get
        |    val indices = inTrackers.indices
        |    
        |    val validTracking = indices.forall(
@@ -578,7 +578,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |        
        |        val trigger = ((isBelowIn && x >= y0 && x < y1) || (!isBelowIn && x <= y0 && x > y1)) && heightOut >= HEIGHT - threshold && heightOut <= HEIGHT
        |        val preserve = ((x < y0 && x < y1) || (x > y0 && x > y1)) && heightIn == heightOut  
-       |        val reset = (isBelowIn && x < y0 && x >= y1) || (!isBelowIn && x > y0 && x <= y1) && heightOut == ${Long.MaxValue}L   
+       |        val reset = (isBelowIn && x < y0 && x >= y1) || (!isBelowIn && x > y0 && x <= y1) && heightOut == ${Int.MaxValue}   
        |        val correctHeight = trigger || preserve || reset  
        |        
        |        numDenomIn == numDenomOut && // 1st and 2nd params preserved
@@ -675,7 +675,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  val deltaLpX = reservesXOut - reservesXIn
        |  val deltaLpY = reservesYIn - reservesYOut
        |  
-       |  val trackingTupleArray = trackingBox.R4[Coll[((Int, Int), (Long, Boolean))]].get
+       |  val trackingTupleArray = trackingBox.R4[Coll[((Int, Int), (Int, Boolean))]].get
        |  
        |  val trackingHeight = trackingTupleArray(1)._2._1 // second element of tracking array has 98%
        |  
@@ -784,8 +784,8 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
         |     
         |    val validTrackingBox = trackingBoxIn.tokens(0)._1 == trackingNFT
         |    
-        |    val inTrackers = trackingBoxIn.R4[Coll[((Int, Int), (Long, Boolean))]].get
-        |    val outTrackers = trackingBoxOut.R4[Coll[((Int, Int), (Long, Boolean))]].get
+        |    val inTrackers = trackingBoxIn.R4[Coll[((Int, Int), (Int, Boolean))]].get
+        |    val outTrackers = trackingBoxOut.R4[Coll[((Int, Int), (Int, Boolean))]].get
         |    
         |    val inTracker0 = inTrackers(0) // < 95%
         |    val inTracker2 = inTrackers(2) // < 99%
@@ -800,7 +800,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
         |    //                           inTrackers(3) = ((101, 100), (_, false))
         |     
         |    val validExtract  = (HEIGHT - inTracker0._2._1) > T_extract  && // at least T_extract blocks have passed after crossing below 95% 
-        |                        outTracker1._2._1 == ${Long.MaxValue}L   && // 98 % tracker should be reset, i.e., set to INF  
+        |                        outTracker1._2._1 == ${Int.MaxValue}   && // 98 % tracker should be reset, i.e., set to INF  
         |                        outTracker2._2._1 == inTracker2._2._1    && // 99 % tracker should not be reset
         |                        validBankBox 
         |
