@@ -22,23 +22,28 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
   val bankScript =
     s"""{ 
        |  // This box: (dexyUSD bank box)
+       |  // 
+       |  // TOKENS
        |  //   tokens(0): bankNFT identifying the box
        |  //   tokens(1): dexyUSD tokens to be emitted
-       |  
-       |  // Bank box will be spent as follows
-       |  //   Arbitrage Mint
+       |  // REGISTERS
+       |  //   None
+       |  // 
+       |  // TRANSACTIONS
+       |  //   
+       |  // [1] Arbitrage Mint
        |  //   Input         |  Output         |   Data-Input
        |  // ------------------------------------------------
        |  // 0 ArbitrageMint |  ArbitrageMint  |   Oracle 
        |  // 1 Bank          |  Bank           |   LP
-       |
-       |  //   Free Mint
+       |  // 
+       |  // [2] Free Mint
        |  //   Input    |  Output   |   Data-Input
        |  // -------------------------------------
        |  // 0 FreeMint |  FreeMint |   Oracle
        |  // 1 Bank     |  Bank     |   LP
-       |
-       |  //   Intervention
+       |  // 
+       |  // [3] Intervention
        |  //   Input         |  Output        |   Data-Input 
        |  // -----------------------------------------------
        |  // 0 LP            |  LP            |   Oracle
@@ -46,7 +51,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  // 2 Intervention  |  Intervention  |
        |  // 3 Tracking Box  |  Tracking Box  |
        |  // 
-       |  //   Extract for future
+       |  // [4] Extract for future
        |  //   Input         |  Output        |   Data-Input 
        |  // -----------------------------------------------
        |  // 0 LP            |  LP            |   Oracle
@@ -62,6 +67,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  val arbitrageMintNFT = fromBase64("${Base64.encode(arbitrageMintNFT.decodeHex)}") 
        |  
        |  val selfOut = OUTPUTS(selfOutIndex)
+       |  
        |  val validSelfOut = selfOut.tokens(0) == SELF.tokens(0) && // bankNFT and quantity preserved
        |                     selfOut.propositionBytes == SELF.propositionBytes && // script preserved
        |                     selfOut.tokens(1)._1 == SELF.tokens(1)._1 // dexyUSD tokenId preserved
@@ -78,15 +84,18 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
   // arbitrage mint box
   val arbitrageMintScript =
     s"""{ 
-       |  
        |  // this box: (arbitrage-mint box)
+       |  // 
+       |  // TOKENS
        |  //   tokens(0): Arbitrage-mint NFT
        |  // 
+       |  // REGISTERS
        |  //   R4: (Int) height at which counter will reset
-       |  //   R5: (Long) remaining stablecoins available to be purchased before counter is reset
-       |  
-       |  // Arbitrage Mint box will be spent as follows
-       |  //   Arbitrage Mint
+       |  //   R5: (Long) remaining Dexy tokens available to be purchased before counter is reset
+       |  // 
+       |  // TRANSACTIONS
+       |  // 
+       |  // [1] Arbitrage Mint
        |  //   Input         |  Output         |   Data-Input
        |  // ------------------------------------------------
        |  // 0 ArbitrageMint |  ArbitrageMint  |   Oracle 
@@ -167,16 +176,18 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
 
   // free mint box
   val freeMintScript =
-    s"""{ // ToDo: Add fee
-       |  // 
+    s"""{  
        |  // this box: (free-mint box)
+       |  // 
+       |  // TOKENS
        |  //   tokens(0): Free-mint NFT
        |  // 
+       |  // REGISTERS
        |  //   R4: (Int) height at which counter will reset
        |  //   R5: (Long) remaining stablecoins available to be purchased before counter is reset
-       |  
-       |  //   Free Mint box will be spent as follows:
-       |  //   Free Mint
+       |  // 
+       |  // TRANSACTIONS
+       |  // [1] Free Mint
        |  //   Input    |  Output   |   Data-Input
        |  // -------------------------------------
        |  // 0 FreeMint |  FreeMint |   Oracle
@@ -249,64 +260,69 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
   // below contract is adapted from N2T DEX contract in EIP-14 https://github.com/ergoplatform/eips/blob/de30f94ace1c18a9772e1dd0f65f00caf774eea3/eip-0014.md?plain=1#L558-L636
   val lpScript =
     s"""{
-       |    // Notation:
-       |    // 
-       |    // X is the primary token
-       |    // Y is the secondary token 
-       |    // When using Erg-USD oracle v1, X is NanoErg and Y is USD   
-       |
        |    // This box: (LP box)
-       |    //   R1 (value): X tokens in NanoErgs 
-       |    //   R4: How many LP in circulation (long). This can be non-zero when bootstrapping, to consider the initial token burning in UniSwap v2
+       |    //
+       |    // TOKENS
        |    //   Tokens(0): LP NFT to uniquely identify NFT box. (Could we possibly do away with this?) 
        |    //   Tokens(1): LP tokens
-       |    //   Tokens(2): Y tokens (Note that X tokens are NanoErgs (the value) 
+       |    //   Tokens(2): Y tokens (Note that X tokens are NanoErgs (the value)
+       |    //
+       |    // REGISTERS
+       |    //   R1 (value): X tokens in NanoErgs 
+       |    //   R4: How many LP in circulation (long). This can be non-zero when bootstrapping, to consider the initial token burning in UniSwap v2
        |    //   
-       |    // Data Input #0: (oracle pool box)
-       |    //   R4: Rate in units of X per unit of Y
-       |    //   Token(0): OP NFT to uniquely identify Oracle Pool
-       |    
-       |    // LP box will be spent as follows
-       |    //   Intervention
+       |    // TRANSACTIONS
+       |    //
+       |    // [1] Intervention
        |    //   Input         |  Output        |   Data-Input 
        |    // -----------------------------------------------
        |    // 0 LP            |  LP            |   Oracle
        |    // 1 Bank          |  Bank          |
        |    // 2 Intervention  |  Intervention  |
        |    // 3 Tracking Box  |  Tracking Box  |
-       |
-       |    //   Swap
+       |    //
+       |    // [2] Swap
        |    //   Input         |  Output        |   Data-Input 
        |    // -----------------------------------------------
        |    // 0 LP            |  LP            |   Oracle
        |    // 1 Tracking Box  |  Tracking Box  |    
-       |
-       |    //   Redeem LP tokens
+       |    //
+       |    // [3] Redeem LP tokens
        |    //   Input         |  Output        |   Data-Input 
        |    // -----------------------------------------------
        |    // 0 LP            |  LP            |   Oracle
        |    // 1 Tracking Box  |  Tracking Box  |
-       |
-       |    //   Mint LP tokens
+       |    // 
+       |    // [4] Mint LP tokens
        |    //   Input         |  Output        |   Data-Input 
        |    // -----------------------------------------------
        |    // 0 LP            |  LP            |   Oracle
        |    // 1 Tracking Box  |  Tracking Box  |
-       |
-       |    //   Extract to future
+       |    // 
+       |    // [5] Extract to future
        |    //   Input         |  Output        |   Data-Input 
        |    // -----------------------------------------------
        |    // 0 LP            |  LP            |   Oracle
        |    // 1 Extract       |  Extract       |   Bank
        |    // 2 Tracking Box  |  Tracking Box  |
-       |
-       |    //   Reverse Extract to future
+       |    //
+       |    // [6] Release extracted to future tokens
        |    //   Input         |  Output        |   Data-Input 
        |    // -----------------------------------------------
        |    // 0 LP            |  LP            |   Oracle
        |    // 1 Extract       |  Extract       |   
        |    // 2 Tracking Box  |  Tracking Box  |
-       |
+       |    //
+       |    // -------------------------------------------------------------
+       |    // Data Input #0: (oracle pool box)
+       |    //   R4: Rate in units of X per unit of Y
+       |    //   Token(0): OP NFT to uniquely identify Oracle Pool
+       |    // -------------------------------------------------------------
+       |    // Notation:
+       |    // 
+       |    // X is the primary token
+       |    // Y is the secondary token 
+       |    // When using Erg-USD oracle v1, X is NanoErg and Y is USD   
        |    
        |    val selfOutIndex = 0
        |    val oracleBoxIndex = 0
@@ -420,7 +436,57 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |""".stripMargin
 
   val trackingScript =
-    s"""{
+    s"""{   
+       |    // This box: Tracking box
+       |    // 
+       |    // TOKENS
+       |    //   tokens(0): Tracking NFT
+       |    // 
+       |    // REGISTERS
+       |    //   R4: [Coll[((Int, Int), (Long, Boolean))]] (explained below)
+       |    // 
+       |    // TRANSACTIONS (everywhere LP is spent)
+       |    // [1] Intervention
+       |    //   Input         |  Output        |   Data-Input 
+       |    // -----------------------------------------------
+       |    // 0 LP            |  LP            |   Oracle
+       |    // 1 Bank          |  Bank          |
+       |    // 2 Intervention  |  Intervention  |
+       |    // 3 Tracking Box  |  Tracking Box  |
+       |    //
+       |    // [2] Swap
+       |    //   Input         |  Output        |   Data-Input 
+       |    // -----------------------------------------------
+       |    // 0 LP            |  LP            |   Oracle
+       |    // 1 Tracking Box  |  Tracking Box  |    
+       |    //
+       |    // [3] Redeem LP tokens
+       |    //   Input         |  Output        |   Data-Input 
+       |    // -----------------------------------------------
+       |    // 0 LP            |  LP            |   Oracle
+       |    // 1 Tracking Box  |  Tracking Box  |
+       |    // 
+       |    // [4] Mint LP tokens
+       |    //   Input         |  Output        |   Data-Input 
+       |    // -----------------------------------------------
+       |    // 0 LP            |  LP            |   Oracle
+       |    // 1 Tracking Box  |  Tracking Box  |
+       |    // 
+       |    // [5] Extract to future
+       |    //   Input         |  Output        |   Data-Input 
+       |    // -----------------------------------------------
+       |    // 0 LP            |  LP            |   Oracle
+       |    // 1 Extract       |  Extract       |   Bank
+       |    // 2 Tracking Box  |  Tracking Box  |
+       |    //
+       |    // [6] Release extracted to future tokens
+       |    //   Input         |  Output        |   Data-Input 
+       |    // -----------------------------------------------
+       |    // 0 LP            |  LP            |   Oracle
+       |    // 1 Extract       |  Extract       |   
+       |    // 2 Tracking Box  |  Tracking Box  |
+       |    //
+       |      
        |    val threshold = 3 // error threshold in crossTrackerLow
        |    
        |    val oracleBoxIndex = 0
@@ -527,9 +593,16 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
 
   val interventionScript =
     s"""{  
-       |  
-       |  // Intervention box will be spent as follows
-       |  //   Intervention
+       |  // This box: Intervention box
+       |  // 
+       |  // TOKENS
+       |  //   tokens(0): Intervention NFT
+       |  //   
+       |  // REGISTERS
+       |  //   none
+       |  // 
+       |  // TRANSACTIONS
+       |  // [1] Intervention
        |  //   Input         |  Output        |   Data-Input 
        |  // -----------------------------------------------
        |  // 0 LP            |  LP            |   Oracle
@@ -628,28 +701,36 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |""".stripMargin
 
   val extractScript =
-    s"""|{   // ToDo: verify following
-        |    //   cannot change prop bytes for LP, Extract and Tracking box
-        |    //   cannot change tokens/nanoErgs in LP, extract and tracking box except what is permitted
-        |    //   all "validXyzBox" conditions are actually used everywhere
-        |
-        |    // This box (Extract (to future) box, where "extract to future" dexy coins stored)
-        |    // tokens(0): extractionNFT 
-        |    // tokens(1): Dexy tokens 
-        |
-        |    //   Extract to future
+    s"""|{   
+        |    // This box: Extract to future
+        |    // 
+        |    // TOKENS
+        |    //   tokens(0): extractionNFT 
+        |    //   tokens(1): Dexy tokens
+        |    // 
+        |    // REGISTERS
+        |    //   none
+        |    // 
+        |    // TRANSACTIONS
+        |    //
+        |    // [1] Extract to future
         |    //   Input         |  Output        |   Data-Input 
         |    // -----------------------------------------------
         |    // 0 LP            |  LP            |   Oracle (unused here)
         |    // 1 Extract       |  Extract       |   Bank   (to check that bank is empty)
         |    // 2 Tracking Box  |  Tracking Box  |
-        |
-        |    //   Reverse Extract to future
+        |    // 
+        |    // [2] Reverse Extract to future (release)
         |    //   Input         |  Output        |   Data-Input 
         |    // -----------------------------------------------
         |    // 0 LP            |  LP            |   Oracle
         |    // 1 Extract       |  Extract       |   
         |    // 2 Tracking Box  |  Tracking Box  |
+        |        
+        |    // ToDo: verify following
+        |    //   cannot change prop bytes for LP, Extract and Tracking box
+        |    //   cannot change tokens/nanoErgs in LP, extract and tracking box except what is permitted
+        |    //   all "validXyzBox" conditions are actually used everywhere
         |    
         |    // tracker#0 : Tracks < 95%
         |    // tracker#1 : Tracks < 98%
