@@ -476,7 +476,8 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    // there will be following tracking boxes
        |    //  num | denom | height | isBelow
        |    //  95  | 100   | _      | true     (for extracting to future)
-       |    //  98  | 100   | _      | true     (for arbitrage mint, reversing extract to future)
+       |    //  98  | 100   | _      | true     (for arbitrage mint)
+       |    //  101 | 100   | _      | false    (for release in future - reverse of extract to future)
        |    
        |    
        |    val denomIn = SELF.R4[Int].get
