@@ -12,7 +12,9 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
 
   val oracleNFT = "472B4B6250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val lpNFT = "361A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
-  val trackingNFT = "261A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
+  val tracking98NFT = "261A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
+  val tracking95NFT = "261A3A5250655368566D597133743677397A24432646294A404D635166546A55" // TODO replace with actual
+  val tracking101NFT = "261A3A5250655368566D597133743677397A24432646294A404D635166546A58" // TODO replace with actual
   val interventionNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val extractionNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A54" // TODO replace with actual
   val freeMintNFT = "061A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
@@ -51,12 +53,6 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  // 2 Intervention  |  Intervention  |
        |  // 3 Tracking Box  |  Tracking Box  |
        |  // 
-       |  // [4] Extract for future
-       |  //   Input         |  Output        |   Data-Input 
-       |  // -----------------------------------------------
-       |  // 0 LP            |  LP            |   Oracle
-       |  // 1 Extract       |  Extract       |   Bank
-       |  // 2 Tracking Box  |  Tracking Box  |
        |  
        |  val selfOutIndex = 1        // 2nd output is self copy
        |  val mintInIndex = 0         // 1st input is mint or LP box
@@ -279,44 +275,35 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    // 0 LP            |  LP            |   Oracle
        |    // 1 Bank          |  Bank          |
        |    // 2 Intervention  |  Intervention  |
-       |    // 3 Tracking Box  |  Tracking Box  |
        |    //
        |    // [2] Swap
        |    //   Input         |  Output        |   Data-Input 
        |    // -----------------------------------------------
        |    // 0 LP            |  LP            |   Oracle
-       |    // 1 Tracking Box  |  Tracking Box  |    
        |    //
        |    // [3] Redeem LP tokens
        |    //   Input         |  Output        |   Data-Input 
        |    // -----------------------------------------------
        |    // 0 LP            |  LP            |   Oracle
-       |    // 1 Tracking Box  |  Tracking Box  |
        |    // 
        |    // [4] Mint LP tokens
        |    //   Input         |  Output        |   Data-Input 
        |    // -----------------------------------------------
        |    // 0 LP            |  LP            |   Oracle
-       |    // 1 Tracking Box  |  Tracking Box  |
        |    // 
        |    // [5] Extract to future
        |    //   Input         |  Output        |   Data-Input 
        |    // -----------------------------------------------
        |    // 0 LP            |  LP            |   Oracle
        |    // 1 Extract       |  Extract       |   Bank
-       |    // 2 Tracking Box  |  Tracking Box  |
+       |    // 3               |                |   Tracking Box (95%)
        |    //
        |    // [6] Release extracted to future tokens
        |    //   Input         |  Output        |   Data-Input 
        |    // -----------------------------------------------
        |    // 0 LP            |  LP            |   Oracle
-       |    // 1 Extract       |  Extract       |   
-       |    // 2 Tracking Box  |  Tracking Box  |
+       |    // 1 Extract       |  Extract       |   Tracking Box (98%)
        |    //
-       |    // -------------------------------------------------------------
-       |    // Data Input #0: (oracle pool box)
-       |    //   R4: Rate in units of X per unit of Y
-       |    //   Token(0): OP NFT to uniquely identify Oracle Pool
        |    // -------------------------------------------------------------
        |    // Notation:
        |    // 
@@ -326,9 +313,6 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    
        |    val selfOutIndex = 0
        |    val oracleBoxIndex = 0
-       |    val trackingBoxInIndex = getVar[Int](0).get
-       |    
-       |    val trackingBox = INPUTS(trackingBoxInIndex)
        |
        |    val interventionBoxIndex = 2 // ToDo: fix if possible, otherwise each tx needs at least 3 inputs (add dummy inputs for now)
        |    val interventionBox = INPUTS(interventionBoxIndex) // see above comment ^ 
@@ -348,7 +332,6 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    val successor = OUTPUTS(selfOutIndex) // copy of this box after exchange
        |    val oracleBox = CONTEXT.dataInputs(oracleBoxIndex) // oracle pool box
        |    val validOraclePoolBox = oracleBox.tokens(0)._1 == fromBase64("${Base64.encode(oracleNFT.decodeHex)}") // to identify oracle pool box 
-       |    val validTrackingBox = trackingBox.tokens(0)._1 == fromBase64("${Base64.encode(trackingNFT.decodeHex)}") // to identify tracking box
        |    val validIntervention = interventionBox.tokens(0)._1 == fromBase64("${Base64.encode(interventionNFT.decodeHex)}") 
        |    val validExtraction = extractBox.tokens(0)._1 == fromBase64("${Base64.encode(extractionNFT.decodeHex)}") 
        |    
@@ -419,12 +402,11 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |            else validRedemption
        |
        |    val dexyAction = validIntervention || // intervention
-       |                     validExtraction // extract to future
+       |                     validExtraction // extract to future or release in future
        |    sigmaProp(
        |        validSupplyLP1            &&
        |        validSuccessorScript      &&
        |        validOraclePoolBox        &&
-       |        validTrackingBox          && 
        |        preservedLpNFT            &&
        |        validLpBox                &&
        |        validY                    &&
@@ -443,151 +425,106 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    //   tokens(0): Tracking NFT
        |    // 
        |    // REGISTERS
-       |    //   R4: [Coll[((Int, Int), (Int, Boolean))]] (explained below)
+       |    //   R4: Int (num) (explained below)
+       |    //   R5: Int (denom) (explained below)
+       |    //   R6: Boolean (isBelow) (explained below)
+       |    //   R7: Int (trackingHeight) (explained below)
        |    // 
-       |    // TRANSACTIONS (everywhere LP is spent)
-       |    // [1] Intervention
+       |    // TRANSACTIONS 
+       |    // [1] Update tracking
        |    //   Input         |  Output        |   Data-Input 
        |    // -----------------------------------------------
-       |    // 0 LP            |  LP            |   Oracle
-       |    // 1 Bank          |  Bank          |
-       |    // 2 Intervention  |  Intervention  |
-       |    // 3 Tracking Box  |  Tracking Box  |
+       |    // 0 Tracking box  |  Tracking box  |   LP
        |    //
-       |    // [2] Swap
-       |    //   Input         |  Output        |   Data-Input 
-       |    // -----------------------------------------------
-       |    // 0 LP            |  LP            |   Oracle
-       |    // 1 Tracking Box  |  Tracking Box  |    
-       |    //
-       |    // [3] Redeem LP tokens
-       |    //   Input         |  Output        |   Data-Input 
-       |    // -----------------------------------------------
-       |    // 0 LP            |  LP            |   Oracle
-       |    // 1 Tracking Box  |  Tracking Box  |
-       |    // 
-       |    // [4] Mint LP tokens
-       |    //   Input         |  Output        |   Data-Input 
-       |    // -----------------------------------------------
-       |    // 0 LP            |  LP            |   Oracle
-       |    // 1 Tracking Box  |  Tracking Box  |
-       |    // 
-       |    // [5] Extract to future
-       |    //   Input         |  Output        |   Data-Input 
-       |    // -----------------------------------------------
-       |    // 0 LP            |  LP            |   Oracle
-       |    // 1 Extract       |  Extract       |   Bank
-       |    // 2 Tracking Box  |  Tracking Box  |
-       |    //
-       |    // [6] Release extracted to future tokens
-       |    //   Input         |  Output        |   Data-Input 
-       |    // -----------------------------------------------
-       |    // 0 LP            |  LP            |   Oracle
-       |    // 1 Extract       |  Extract       |   
-       |    // 2 Tracking Box  |  Tracking Box  |
-       |    //
+       |    // Whenever LP box gets updated, someone must spend this box with LP as data input to update tracker 
        |      
        |    val threshold = 3 // error threshold in crossTrackerLow
        |    
        |    val oracleBoxIndex = 0
-       |    val lpBoxInIndex = 0
-       |    val lpBoxOutIndex = 0
+       |    val lpBoxIndex = 1
        |    val selfOutIndex = getVar[Int](0).get
        |
-       |    val lpBoxIn = INPUTS(lpBoxInIndex)
-       |    val lpBoxOut = OUTPUTS(lpBoxOutIndex)
+       |    val lpBox = CONTEXT.dataInputs(lpBoxIndex)
        |    val oracleBox = CONTEXT.dataInputs(oracleBoxIndex)
        |    val successor = OUTPUTS(selfOutIndex)
        |    
-       |    val tokenY0     = lpBoxIn.tokens(2)
-       |    val tokenY1     = lpBoxOut.tokens(2)
+       |    val tokenY     = lpBox.tokens(2)
        |    
-       |    val validLp = lpBoxIn.tokens(0)._1 == fromBase64("${Base64.encode(lpNFT.decodeHex)}") // to identify LP box
+       |    val validLp = lpBox.tokens(0)._1 == fromBase64("${Base64.encode(lpNFT.decodeHex)}") // to identify LP box
        |    // this box can only be spent with LP and similarly LP can only be spent with this box.
        |    
        |    val validOraclePoolBox = oracleBox.tokens(0)._1 == fromBase64("${Base64.encode(oracleNFT.decodeHex)}") // to identify oracle pool box
        |    val validSuccessor = successor.tokens == SELF.tokens && successor.propositionBytes == SELF.propositionBytes && SELF.value <= successor.value
        |
        |    val oracleRateXY = oracleBox.R4[Long].get
-       |    val reservesX0 = lpBoxIn.value
-       |    val reservesY0 = tokenY0._2
-       |    val reservesX1 = lpBoxOut.value
-       |    val reservesY1 = tokenY1._2
-       |    val lpRateXY0 = reservesX0 / reservesY0  // we can assume that reservesY0 > 0 (since at least one token must exist)
-       |    val lpRateXY1 = reservesX1 / reservesY1  // we can assume that reservesY1 > 0 (since at least one token must exist)
+       |    val reservesX = lpBox.value
+       |    val reservesY = tokenY._2
+       |    val lpRateXY = reservesX / reservesY  // we can assume that reservesY > 0 (since at least one token must exist)
        |
-       |    // R4 contains a tuple of type (Int, Int), (Int, Boolean). Let these be ((num, denom), (height, isBelow))
+       |    // R4 contains an Int called num
+       |    // R5 contains an Int called denom
+       |    // R6 contains an Boolean called isBelown
+       |    // R7 contains an Int called trackerHeight
        |    // num is numerator, denom is denominator. Let t = num/denom
-       |    // height is the height at which the event was "activated" (will store Int.MaxValue once deactivated)
-       |    // isBelow tells us if the tracking should be for "lower" or "higher"
+       |    // trackerHeight is the height at which the tracker was "triggered". 
+       |    // If the tracker "reset", then trackerHeight will store Int.MaxValue
+       |    // 
+       |    // isBelow tells us if the tracking should be of type "lower" or "higher" 
        |    // Let r be the ratio "oracle pool rate" / "LP rate", where the term "rate" denotes "Ergs per dexy"
-       |    // Now, if "isBelow" is true, then the tracker will be activated (i.e., the 3rd element will be set to the current height) when r goes 
-       |    // below t and will continue to be so as long as r remains below t 
-       |    // Once r goes above t, this tracker will be set to Int.MaxValue (somewhat like an infinite value)
+       |    // Now, if "isBelow" is true (i.e. "lower" tracking), then the tracker will be triggered when r goes below t and will be reset once r goes above t
        |    
-       |    // tracking will have following elements
-       |    // index | num | denom | height | isBelow
-       |    // 0     | 95  | 100   | _      | true     (for extracting to future)
-       |    // 1     | 98  | 100   | _      | true     (for arbitrage mint, reversing extract to future)
-       |    // 2     | 99  | 100   | _      | true     (for extracting to future)  
-       |    // 3     | 101 | 100   | _      | false    (for extracting to future)  
+       |    // there will be following tracking boxes
+       |    //  num | denom | height | isBelow
+       |    //  95  | 100   | _      | true     (for extracting to future)
+       |    //  98  | 100   | _      | true     (for arbitrage mint, reversing extract to future)
        |    
-       |
        |    
-       |    val inTrackers = SELF.R4[Coll[((Int, Int), (Int, Boolean))]].get
-       |    val outTrackers = successor.R4[Coll[((Int, Int), (Int, Boolean))]].get
-       |    val indices = inTrackers.indices
+       |    val denomIn = SELF.R4[Int].get
+       |    val numIn = SELF.R5[Int].get
+       |    val isBelowIn = SELF.R6[Boolean].get
+       |    val trackerHeightIn = SELF.R7[Int].get
        |    
-       |    val validTracking = indices.forall(
-       |      { (index: Int) =>
-       |        val inTracker = inTrackers(index)
-       |        val outTracker = outTrackers(index)
-       |        
-       |        val numDenomIn = inTracker._1
-       |        val numDenomOut = outTracker._1
-       |        
-       |        val isBelowIn = inTracker._2._2
-       |        val isBelowOut = outTracker._2._2
-       |
-       |        val heightIn = inTracker._2._1
-       |        val heightOut = outTracker._2._1
-       |        
-       |        val num = numDenomIn._1     // numerator
-       |        val denom = numDenomIn._2   // denominator
-       |        
-       |        // For a ratio of 95%, set num to 95 and denom to 100 (equivalently 19, 20), and set fourth parameter to true
-       |        // Then the third param (tracker height) will be set when oracle pool rate becomes <= 95% of LP rate 
+       |    val denomOut = successor.R4[Int].get
+       |    val numOut = successor.R5[Int].get
+       |    val isBelowOut = successor.R6[Boolean].get
+       |    val trackerHeightOut = successor.R7[Int].get
+       |    
+       |    val validTracking = {
+       |        // For a ratio of 95%, set num to 95 and denom to 100 (equivalently 19, 20), and set isBelow to true
+       |        // Then trackerHeight will be set when oracle pool rate becomes <= 95% of LP rate 
        |        // and it will be reset to Int.MaxValue when that rate becomes > than 95% of LP rate
        |        // 
-       |        // Let oracle pool rate be P and LP rate at input be L0 and at output be L1
+       |        // Let oracle pool rate be P and LP rate at earlier point be L0 and currently (via data input) be L1
        |        // Let N and D denote num and denom respectively. Then we can use the following table
        |        // 
        |        // EVENT    | isBelow | INPUT       | OUTPUT
        |        // ---------+---------+-------------+-----------
        |        // trigger  | true    | P/L0 >= N/D | P/L1 <  N/D 
-       |        // preserve | true    | P/L0 <  N/D | P/L1 <  N/D 
        |        // reset    | true    | P/L0 <  N/D | P/L1 >= N/D (reverse of 1st row)
        |        // ---------+---------+-------------+------------
        |        // trigger  | false   | P/L0 <= N/D | P/L1 >  N/D 
-       |        // preserve | false   | P/L0 >  N/D | P/L1 >  N/D 
        |        // reset    | false   | P/L0 >  N/D | P/L1 <= N/D (reverse of 1st row) 
        |        
-       |        val x = oracleRateXY * denom
-       |        val y0 = num * lpRateXY0
-       |        val y1 = num * lpRateXY1
+       |        val x = oracleRateXY * denomIn
+       |        val y = numIn * lpRateXY
        |        
-       |        val trigger = ((isBelowIn && x >= y0 && x < y1) || (!isBelowIn && x <= y0 && x > y1)) && heightOut >= HEIGHT - threshold && heightOut <= HEIGHT
-       |        val preserve = ((x < y0 && x < y1) || (x > y0 && x > y1)) && heightIn == heightOut  
-       |        val reset = (isBelowIn && x < y0 && x >= y1) || (!isBelowIn && x > y0 && x <= y1) && heightOut == ${Int.MaxValue}   
-       |        val correctHeight = trigger || preserve || reset  
+       |        val notTriggeredEarlier = trackerHeightIn == ${Int.MaxValue}
+       |        val triggeredNow = trackerHeightOut >= HEIGHT - threshold && trackerHeightOut <= HEIGHT
+       |         
+       |        val notResetEarlier = trackerHeightIn < ${Int.MaxValue}
+       |        val resetNow = trackerHeightOut == ${Int.MaxValue}
+       |         
+       |        val trigger = ((isBelowIn && x < y) || (!isBelowIn && x > y)) && notTriggeredEarlier && triggeredNow
+       |        val reset = (isBelowIn && x >= y) || (!isBelowIn && x <= y) && notResetEarlier && resetNow   
+       |        val correctHeight = trigger || reset  
        |        
-       |        numDenomIn == numDenomOut && // 1st and 2nd params preserved
-       |        isBelowIn == isBelowOut   && // 4th param preserved
+       |        numOut == numIn          && 
+       |        denomOut == denomIn      && 
+       |        isBelowOut == isBelowIn  && 
        |        correctHeight
-       |      }
-       |    )
+       |    }
        |    
-       |    sigmaProp(validSuccessor && validLp && validTracking && validOraclePoolBox) // probably validOraclePoolBox is not needed as its already in LP
+       |    sigmaProp(validSuccessor && validLp && validTracking && validOraclePoolBox)
        |}
        |""".stripMargin
 
@@ -606,9 +543,8 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  //   Input         |  Output        |   Data-Input 
        |  // -----------------------------------------------
        |  // 0 LP            |  LP            |   Oracle
-       |  // 1 Bank          |  Bank          |   Tracking
-       |  // 2 Intervention  |  Intervention  |
-       |  // 3 Tracking Box  |  Tracking Box  |
+       |  // 1 Bank          |  Bank          |   Tracking Box
+       |  // 2 Intervention  |  Intervention  |   
        |  
        |  val lpInIndex = 0
        |  val lpOutIndex = 0
@@ -625,6 +561,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  val bankNFT = fromBase64("${Base64.encode(bankNFT.decodeHex)}") 
        |  val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}") 
        |  val oracleNFT = fromBase64("${Base64.encode(oracleNFT.decodeHex)}")
+       |  val tracking98NFT = fromBase64("${Base64.encode(tracking98NFT.decodeHex)}")
        |  
        |  val thresholdPercent = 98 // 98% or less value (of LP in terms of OraclePool) will trigger action (ensure less than 100) 
        |  
@@ -656,6 +593,8 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  val validThreshold = lpRateXYIn * 100 < thresholdPercent * oracleRateXY
        |   
        |  val validOraclePoolBox = oracleBox.tokens(0)._1 == oracleNFT 
+       |  val validTrackingBox = trackingBox.tokens(0)._1 == tracking98NFT
+       |   
        |  val validLpBox = lpBoxIn.tokens(0)._1 == lpNFT
        |  
        |  val validSuccessor = successor.propositionBytes == SELF.propositionBytes  &&
@@ -675,9 +614,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  val deltaLpX = reservesXOut - reservesXIn
        |  val deltaLpY = reservesYIn - reservesYOut
        |  
-       |  val trackingTupleArray = trackingBox.R4[Coll[((Int, Int), (Int, Boolean))]].get
-       |  
-       |  val trackingHeight = trackingTupleArray(1)._2._1 // second element of tracking array has 98%
+       |  val trackingHeight = trackingBox.R7[Int].get
        |  
        |  val validLpIn = trackingHeight < HEIGHT - T_int // at least T_int blocks have passed since the tracking started
        |                  
@@ -692,6 +629,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |                  validSuccessor                              &&
        |                  validLpBox                                  &&
        |                  validOraclePoolBox                          &&
+       |                  validTrackingBox                            &&
        |                  validThreshold                              &&
        |                  validLpIn                                   && 
        |                  validGap
@@ -718,44 +656,49 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
         |    // -----------------------------------------------
         |    // 0 LP            |  LP            |   Oracle (unused here)
         |    // 1 Extract       |  Extract       |   Bank   (to check that bank is empty)
-        |    // 2 Tracking Box  |  Tracking Box  |
+        |    // 2               |                |   Tracking Box (95%)
         |    // 
         |    // [2] Reverse Extract to future (release)
         |    //   Input         |  Output        |   Data-Input 
         |    // -----------------------------------------------
         |    // 0 LP            |  LP            |   Oracle
-        |    // 1 Extract       |  Extract       |   
-        |    // 2 Tracking Box  |  Tracking Box  |
+        |    // 1 Extract       |  Extract       |   Tracking Box (101%)
         |        
         |    // ToDo: verify following
         |    //   cannot change prop bytes for LP, Extract and Tracking box
         |    //   cannot change tokens/nanoErgs in LP, extract and tracking box except what is permitted
-        |    //   all "validXyzBox" conditions are actually used everywhere
-        |    
-        |    // tracker#0 : Tracks < 95%
-        |    // tracker#1 : Tracks < 98%
-        |    // tracker#2 : Tracks < 99%
         |    
         |    val lpBoxInIndex = 0
         |    val lpBoxOutIndex = 0
         |    
         |    val selfOutIndex = 1
         |    
-        |    val trackingBoxInIndex = 2
-        |    val trackingBoxOutIndex = 2
+        |    // for data inputs
+        |    val oracleBoxIndex = 0
+        |    val bankBoxIndex = 1
+        |    val tracking95BoxIndex = 2
+        |    
+        |    val tracking101BoxIndex = 1
+        |    
         |    val minTokens = 100 // if Dexy tokens less than this number in bank box, then bank is considered "empty"
         |    
-        |    val trackingNFT = fromBase64("${Base64.encode(trackingNFT.decodeHex)}")
+        |    val tracking95NFT = fromBase64("${Base64.encode(tracking95NFT.decodeHex)}")
+        |    val tracking101NFT = fromBase64("${Base64.encode(tracking101NFT.decodeHex)}")
         |    val bankNFT = fromBase64("${Base64.encode(bankNFT.decodeHex)}")
         |    val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}")
+        |    val oracleNFT = fromBase64("${Base64.encode(oracleNFT.decodeHex)}")
         |    
         |    val T_extract = 10 // blocks for which the rate is below 95%
         |    val T_release = 2 // blocks for which the rate is above 101%
         |    val buffer = 3 // allowable error in setting height due to congestion 
         |    
         |    // tracking box should record at least T_extract blocks of < 95%
-        |    val trackingBoxIn = INPUTS(trackingBoxInIndex)
-        |    val trackingBoxOut = OUTPUTS(trackingBoxOutIndex)
+        |    val tracking95Box = CONTEXT.dataInputs(tracking95BoxIndex)
+        |    val tracking101Box = CONTEXT.dataInputs(tracking101BoxIndex)
+        |    val oracleBox = CONTEXT.dataInputs(oracleBoxIndex)
+        |     
+        |    val tracker95Height = tracking95Box.R7[Int].get
+        |    val tracker101Height = tracking101Box.R7[Int].get
         |    
         |    val lpBoxIn = INPUTS(lpBoxInIndex)
         |    val lpBoxOut = OUTPUTS(lpBoxInIndex)
@@ -768,45 +711,56 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
         |                            
         |    val deltaDexy = successor.tokens(1)._2 - SELF.tokens(1)._2 // can be +ve or -ve 
         |    
-        |    val validBankBox = if (CONTEXT.dataInputs.size > 1) {
-        |      CONTEXT.dataInputs(1).tokens(0)._1 == bankNFT &&
-        |      CONTEXT.dataInputs(1).tokens(1)._2 <= minTokens
+        |    val validBankBox = if (CONTEXT.dataInputs.size > bankBoxIndex) {
+        |      CONTEXT.dataInputs(bankBoxIndex).tokens(0)._1 == bankNFT &&
+        |      CONTEXT.dataInputs(bankBoxIndex).tokens(1)._2 <= minTokens
         |    } else false
+        |    
+        |    val validOracleBox = oracleBox.tokens(0)._1 == oracleNFT 
+        |    
+        |    val reservesYOut = lpBoxOut.tokens(2)._2
+        |    val reservesYIn = lpBoxIn.tokens(2)._2
+        |    val reservesXOut = lpBoxOut.value
+        |    val reservesXIn = lpBoxIn.value
         |    
         |    val validLpBox = lpBoxIn.tokens(0)._1 == lpNFT                               && // Maybe this check not needed? (see LP box)
         |                     lpBoxOut.tokens(0)._1 == lpBoxIn.tokens(0)._1               && // NFT preserved 
         |                     lpBoxOut.tokens(1) == lpBoxIn.tokens(1)                     && // LP tokens preserved
         |                     lpBoxOut.tokens(2)._1 == lpBoxIn.tokens(2)._1               && // Dexy token Id preserved
         |                     lpBoxOut.tokens(2)._1 == SELF.tokens(1)._1                  && // Dexy token Id is same as tokens stored here
-        |                     lpBoxOut.tokens(2)._2 == (lpBoxIn.tokens(2)._2 + deltaDexy) && // Dexy token qty preserved
-        |                     lpBoxOut.value == lpBoxIn.value                             &&
+        |                     reservesYOut == (reservesYIn + deltaDexy)                   && // Dexy token qty preserved
+        |                     reservesXOut == reservesXIn                                 &&
         |                     lpBoxOut.propositionBytes == lpBoxIn.propositionBytes  
         |     
-        |    val validTrackingBox = trackingBoxIn.tokens(0)._1 == trackingNFT
+        |    val validTracking95Box = tracking95Box.tokens(0)._1 == tracking95NFT
+        |    val validTracking101Box = tracking101Box.tokens(0)._1 == tracking101NFT
         |    
-        |    val inTrackers = trackingBoxIn.R4[Coll[((Int, Int), (Int, Boolean))]].get
-        |    val outTrackers = trackingBoxOut.R4[Coll[((Int, Int), (Int, Boolean))]].get
+        |    val oracleRateXY = oracleBox.R4[Long].get
+        |    val lpRateXYOut = reservesXOut / reservesYOut
         |    
-        |    val inTracker0 = inTrackers(0) // < 95%
-        |    val inTracker2 = inTrackers(2) // < 99%
-        |    val inTracker3 = inTrackers(3) // > 101%
+        |    val validExtractAmount = oracleRateXY * 100 > lpRateXYOut * 98 && // lpRate at output must be >= 0.98 * oracleRate   
+        |                             oracleRateXY * 100 < lpRateXYOut * 101   // lpRate at output must be <= 1.01 * oracleRate 
+        |                             // ToDo: possibly tweak the 101 requirement (or remove it?)
+        |                             
+        |    val validReleaseAmount = oracleRateXY * 100 > lpRateXYOut * 101 && // lpRate at output must be >= 1.01 * oracleRate   
+        |                             oracleRateXY * 100 < lpRateXYOut * 104    // lpRate at output must be <= 1.04 * oracleRate 
+        |                             // ToDo: possibly tweak the 104 requirement (or remove it?)
+        |                             
         |    
-        |    val outTracker1 = outTrackers(1) // < 98%
-        |    val outTracker2 = outTrackers(2) // < 99%
-        |    
-        |    // we can assume             inTrackers(0) = ((95, 100), (_, true))  (See tracking box) 
-        |    // similarly, we can assume  inTrackers(1) = ((98, 100), (_, true))  and 
-        |    //                           inTrackers(2) = ((99, 100), (_, true))
-        |    //                           inTrackers(3) = ((101, 100), (_, false))
-        |     
-        |    val validExtract  = (HEIGHT - inTracker0._2._1) > T_extract  && // at least T_extract blocks have passed after crossing below 95% 
-        |                        outTracker1._2._1 == ${Int.MaxValue}   && // 98 % tracker should be reset, i.e., set to INF  
-        |                        outTracker2._2._1 == inTracker2._2._1    && // 99 % tracker should not be reset
-        |                        validBankBox 
+        |    val validExtract  = (HEIGHT - tracker95Height) > T_extract  && // at least T_extract blocks have passed after crossing below 95% 
+        |                        validBankBox                            && 
+        |                        deltaDexy > 0                           &&
+        |                        validExtractAmount                      &&
+        |                        validTracking95Box
+        |                        // ToDo: do we need to check that input ratio is < 95%? (its already checked in tracker)
         |
-        |    val validRelease  = HEIGHT - inTracker3._2._1 > T_release // at least T_release blocks have passed after crossing above 101%
-        |            
-        |    sigmaProp(validTrackingBox && validSuccessor && validLpBox && (validExtract || validRelease))
+        |    val validRelease  = HEIGHT - tracker101Height > T_release  && // at least T_release blocks have passed after crossing above 101%
+        |                        deltaDexy < 0                          && 
+        |                        validReleaseAmount                     &&
+        |                        validTracking101Box
+        |                        // ToDo: do we need to check that input ratio is > 101%? (its already checked in tracker)
+        |                         
+        |    sigmaProp(validSuccessor && validLpBox && (validExtract || validRelease))
         |}
         |""".stripMargin
 
