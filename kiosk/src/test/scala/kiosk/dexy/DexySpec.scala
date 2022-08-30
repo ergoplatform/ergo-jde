@@ -49,9 +49,8 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  //   Input         |  Output        |   Data-Input 
        |  // -----------------------------------------------
        |  // 0 LP            |  LP            |   Oracle
-       |  // 1 Bank          |  Bank          |
+       |  // 1 Bank          |  Bank          |   Tracking (98%)
        |  // 2 Intervention  |  Intervention  |
-       |  // 3 Tracking Box  |  Tracking Box  |
        |  // 
        |  
        |  val selfOutIndex = 1        // 2nd output is self copy
@@ -296,13 +295,13 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    // -----------------------------------------------
        |    // 0 LP            |  LP            |   Oracle
        |    // 1 Extract       |  Extract       |   Bank
-       |    // 3               |                |   Tracking Box (95%)
+       |    // 3               |                |   Tracking (95%)
        |    //
        |    // [6] Release extracted to future tokens
        |    //   Input         |  Output        |   Data-Input 
        |    // -----------------------------------------------
        |    // 0 LP            |  LP            |   Oracle
-       |    // 1 Extract       |  Extract       |   Tracking Box (98%)
+       |    // 1 Extract       |  Extract       |   Tracking (101%)
        |    //
        |    // -------------------------------------------------------------
        |    // Notation:
@@ -544,7 +543,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  //   Input         |  Output        |   Data-Input 
        |  // -----------------------------------------------
        |  // 0 LP            |  LP            |   Oracle
-       |  // 1 Bank          |  Bank          |   Tracking Box
+       |  // 1 Bank          |  Bank          |   Tracking (98%)
        |  // 2 Intervention  |  Intervention  |   
        |  
        |  val lpInIndex = 0
@@ -657,13 +656,13 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
         |    // -----------------------------------------------
         |    // 0 LP            |  LP            |   Oracle (unused here)
         |    // 1 Extract       |  Extract       |   Bank   (to check that bank is empty)
-        |    // 2               |                |   Tracking Box (95%)
+        |    // 2               |                |   Tracking (95%)
         |    // 
         |    // [2] Reverse Extract to future (release)
         |    //   Input         |  Output        |   Data-Input 
         |    // -----------------------------------------------
         |    // 0 LP            |  LP            |   Oracle
-        |    // 1 Extract       |  Extract       |   Tracking Box (101%)
+        |    // 1 Extract       |  Extract       |   Tracking (101%)
         |        
         |    // ToDo: verify following
         |    //   cannot change prop bytes for LP, Extract and Tracking box
