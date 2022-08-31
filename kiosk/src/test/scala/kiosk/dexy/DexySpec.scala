@@ -536,7 +536,6 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  //   tokens(0): Intervention NFT
        |  //   
        |  // REGISTERS
-       |  //   none
        |  // 
        |  // TRANSACTIONS
        |  // [1] Intervention
@@ -647,7 +646,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
         |    //   tokens(1): Dexy tokens
         |    // 
         |    // REGISTERS
-        |    //   none
+        |    //   R3 (creation-info)
         |    // 
         |    // TRANSACTIONS
         |    //
@@ -690,6 +689,8 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
         |    
         |    val T_extract = 10 // blocks for which the rate is below 95%
         |    val T_release = 2 // blocks for which the rate is above 101%
+        |    val T_delay = 20 // delay between any burn/release operation  ("T_burn" in the paper)
+        |    
         |    val buffer = 3 // allowable error in setting height due to congestion 
         |    
         |    // tracking box should record at least T_extract blocks of < 95%
@@ -704,10 +705,16 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
         |    val lpBoxOut = OUTPUTS(lpBoxInIndex)
         |    
         |    val successor = OUTPUTS(selfOutIndex)
-        |    val validSuccessor = successor.tokens(0)._1 == SELF.tokens(0)._1 &&  // NFT preserved
-        |                         successor.tokens(1)._1 == SELF.tokens(1)._1 &&  // Dexy token id preserved
-        |                         successor.propositionBytes == SELF.propositionBytes &&
-        |                         successor.value == SELF.value 
+        |    
+        |    val lastBurnOrRelease = SELF.creationInfo._1 
+        |     
+        |    val validDelay = lastBurnOrRelease < HEIGHT - T_delay
+        |     
+        |    val validSuccessor = successor.tokens(0)._1 == SELF.tokens(0)._1          &&  // NFT preserved
+        |                         successor.tokens(1)._1 == SELF.tokens(1)._1          &&  // Dexy token id preserved
+        |                         successor.propositionBytes == SELF.propositionBytes  &&
+        |                         successor.value == SELF.value                        &&
+        |                         successor.creationInfo._1 >= HEIGHT - buffer         
         |                            
         |    val deltaDexy = successor.tokens(1)._2 - SELF.tokens(1)._2 // can be +ve or -ve 
         |    
@@ -760,7 +767,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
         |                        validTracking101Box
         |                        // ToDo: do we need to check that input ratio is > 101%? (its already checked in tracker)
         |                         
-        |    sigmaProp(validSuccessor && validLpBox && (validExtract || validRelease))
+        |    sigmaProp(validSuccessor && validDelay && validLpBox && (validExtract || validRelease))
         |}
         |""".stripMargin
 
