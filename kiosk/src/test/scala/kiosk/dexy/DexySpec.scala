@@ -424,8 +424,8 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    //   tokens(0): Tracking NFT
        |    // 
        |    // REGISTERS
-       |    //   R4: Int (num) (explained below)
-       |    //   R5: Int (denom) (explained below)
+       |    //   R4: Int (num) (i.e., numerator -- see below)
+       |    //   R5: Int (denom) (i.e., denominator -- see below)
        |    //   R6: Boolean (isBelow) (explained below)
        |    //   R7: Int (trackingHeight) (explained below)
        |    // 
@@ -435,9 +435,10 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    // -----------------------------------------------
        |    // 0 Tracking box  |  Tracking box  |   LP
        |    //
-       |    // Whenever LP box gets updated, someone must spend this box with LP as data input to update tracker 
+       |    // Whenever LP box gets updated and tracker must be triggered or reset, 
+       |    // someone must spend this box keeping LP as data input 
        |      
-       |    val threshold = 3 // error threshold in crossTrackerLow
+       |    val threshold = 3 // error threshold 
        |    
        |    val oracleBoxIndex = 0
        |    val lpBoxIndex = 1
@@ -450,33 +451,31 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    val tokenY     = lpBox.tokens(2)
        |    
        |    val validLp = lpBox.tokens(0)._1 == fromBase64("${Base64.encode(lpNFT.decodeHex)}") // to identify LP box
-       |    // this box can only be spent with LP and similarly LP can only be spent with this box.
        |    
        |    val validOraclePoolBox = oracleBox.tokens(0)._1 == fromBase64("${Base64.encode(oracleNFT.decodeHex)}") // to identify oracle pool box
-       |    val validSuccessor = successor.tokens == SELF.tokens && successor.propositionBytes == SELF.propositionBytes && SELF.value <= successor.value
+       |    val validSuccessor = successor.tokens == SELF.tokens                      && 
+       |                         successor.propositionBytes == SELF.propositionBytes  && 
+       |                         SELF.value <= successor.value
        |
        |    val oracleRateXY = oracleBox.R4[Long].get
        |    val reservesX = lpBox.value
        |    val reservesY = tokenY._2
        |    val lpRateXY = reservesX / reservesY  // we can assume that reservesY > 0 (since at least one token must exist)
        |
-       |    // R4 contains an Int called num
-       |    // R5 contains an Int called denom
-       |    // R6 contains an Boolean called isBelown
-       |    // R7 contains an Int called trackerHeight
-       |    // num is numerator, denom is denominator. Let t = num/denom
+       |    // Let t = num/denom
        |    // trackerHeight is the height at which the tracker was "triggered". 
        |    // If the tracker "reset", then trackerHeight will store Int.MaxValue
        |    // 
-       |    // isBelow tells us if the tracking should be of type "lower" or "higher" 
+       |    // isBelow tells us if the tracking should be tracking "below" or "above" the ratio.  
        |    // Let r be the ratio "oracle pool rate" / "LP rate", where the term "rate" denotes "Ergs per dexy"
        |    // Now, if "isBelow" is true (i.e. "lower" tracking), then the tracker will be triggered when r goes below t and will be reset once r goes above t
        |    
-       |    // there will be following tracking boxes
-       |    //  num | denom | height | isBelow
-       |    //  95  | 100   | _      | true     (for extracting to future)
-       |    //  98  | 100   | _      | true     (for arbitrage mint)
-       |    //  101 | 100   | _      | false    (for release in future - reverse of extract to future)
+       |    // there will be following tracking boxes:
+       |    // box # | num | denom | height | isBelow
+       |    // ------+-----+-------+--------+--------
+       |    // 1     | 95  | 100   | _      | true     (for extracting to future)
+       |    // 2     | 98  | 100   | _      | true     (for arbitrage mint)
+       |    // 3     | 101 | 100   | _      | false    (for release in future - reverse of extract to future)
        |    
        |    
        |    val denomIn = SELF.R4[Int].get
@@ -495,7 +494,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |        // and it will be reset to Int.MaxValue when that rate becomes > than 95% of LP rate
        |        // 
        |        // Let oracle pool rate be P and LP rate at earlier point be L0 and currently (via data input) be L1
-       |        // Let N and D denote num and denom respectively. Then we can use the following table
+       |        // Let N and D denote num and denom respectively. Then we can use the following table to decide correctness
        |        // 
        |        // EVENT    | isBelow | INPUT       | OUTPUT
        |        // ---------+---------+-------------+-----------
