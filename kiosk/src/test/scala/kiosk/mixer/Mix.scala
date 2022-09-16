@@ -6,7 +6,7 @@ import kiosk.script.ScriptUtil
 object Mix extends App {
   lazy val script =
     s"""{
-        |val a = SELF.R4[GroupElement].get     // current base for dLog
+        |val a = SELF.R4[GroupElement].get  // current base for dLog
         |val b = SELF.R5[GroupElement].get
         |val m = SELF.R6[GroupElement].get  // part of public key of the mixer (base)
         |val n = SELF.R7[GroupElement].get  // part of public key of the mixer (base ^ secret)
@@ -20,7 +20,8 @@ object Mix extends App {
         |val lockTime = 50 // number of blocks for which box is time-locked
         |
         |val owner = proveDHTuple(a, a, b, b)  // = proveDlog(a, b)
-        |val mixer = proveDHTuple(m, m, n, n) // proveDlog(m, n)
+        |val mixer = proveDHTuple(m, m, n, n)  // = proveDlog(m, n)
+        |
         |val timeOut = HEIGHT > h + lockTime
         |
         |val mix = {

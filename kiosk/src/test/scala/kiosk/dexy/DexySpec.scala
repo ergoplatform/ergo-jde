@@ -10,20 +10,33 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyChecks with HttpClientTesting {
 
+  // High level idea:
+  // There are 3 main boxes in the protocol, and the others are auxiliary boxes to manage the main boxes
+  // Main boxes:
+  //   1. Bank box that emits Dexy tokens
+  //   2. Liquidity pool (LP) box that allows swapping Dexy with Ergs
+  //   3. Oracle (pool) box that has the rate of Erg/USD
+
+  // tokens for main boxes
   val oracleNFT = "472B4B6250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
+  val bankNFT = "861A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val lpNFT = "361A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
+
+  // all tokens below for aux boxes (1 for each type of box)
+  val interventionNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
+  val extractionNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A54" // TODO replace with actual
+
+  val freeMintNFT = "061A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
+  val arbitrageMintNFT = "961A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
+
+  // boxes for tracking ratio of LP rate and oracle pool rate (see details in Tracking contract)
   val tracking98NFT = "261A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val tracking95NFT = "261A3A5250655368566D597133743677397A24432646294A404D635166546A55" // TODO replace with actual
   val tracking101NFT = "261A3A5250655368566D597133743677397A24432646294A404D635166546A58" // TODO replace with actual
-  val interventionNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
-  val extractionNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A54" // TODO replace with actual
-  val freeMintNFT = "061A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
-  val arbitrageMintNFT = "961A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
-  val bankNFT = "861A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
 
   val bankScript =
     s"""{ 
-       |  // This box: (dexyUSD bank box)
+       |  // This box: (Bank box)
        |  // 
        |  // TOKENS
        |  //   tokens(0): bankNFT identifying the box
@@ -53,21 +66,26 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  // 2 Intervention  |  Intervention  |
        |  // 
        |  
+       |  // This box emits DexyUSD. The contract only enforces some basic rules (such as the contract and token Ids) are preserved.  
+       |  // It does not does not encode the emission logic. It just requires certain boxes in the inputs to contain certain NFTs. 
+       |  // Those boxes in turn encode the emission logic (and logic for other auxiliary flows, such as intervention).
+       |  // The minting logic (that emits Dexy tokens) is encoded in the FreeMint and ArbitrageMint boxes
+       |  
        |  val selfOutIndex = 1        // 2nd output is self copy
-       |  val mintInIndex = 0         // 1st input is mint or LP box
+       |  val mintInIndex = 0         // 1st input is mint (or LP box in case of intervention, which we ensure in intervention box)
        |  val interventionInIndex = 2 // 3rd input is intervention box
        |  
-       |  val interventionNFT = fromBase64("${Base64.encode(interventionNFT.decodeHex)}") // to identify intervention box for future use
        |  val freeMintNFT = fromBase64("${Base64.encode(freeMintNFT.decodeHex)}") 
        |  val arbitrageMintNFT = fromBase64("${Base64.encode(arbitrageMintNFT.decodeHex)}") 
+       |  val interventionNFT = fromBase64("${Base64.encode(interventionNFT.decodeHex)}") 
        |  
        |  val selfOut = OUTPUTS(selfOutIndex)
        |  
-       |  val validSelfOut = selfOut.tokens(0) == SELF.tokens(0) && // bankNFT and quantity preserved
-       |                     selfOut.propositionBytes == SELF.propositionBytes && // script preserved
-       |                     selfOut.tokens(1)._1 == SELF.tokens(1)._1 // dexyUSD tokenId preserved
+       |  val validSelfOut = selfOut.tokens(0) == SELF.tokens(0)                && // NFT preserved
+       |                     selfOut.propositionBytes == SELF.propositionBytes  && // script preserved
+       |                     selfOut.tokens(1)._1 == SELF.tokens(1)._1             // dexyUSD token Id preserved (but amount will change)
        |       
-       |  val validMint = INPUTS(mintInIndex).tokens(0)._1 == freeMintNFT || 
+       |  val validMint = INPUTS(mintInIndex).tokens(0)._1 == freeMintNFT        || 
        |                  INPUTS(mintInIndex).tokens(0)._1 == arbitrageMintNFT
        |  
        |  val validIntervention = INPUTS(interventionInIndex).tokens(0)._1 == interventionNFT
@@ -79,7 +97,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
   // arbitrage mint box
   val arbitrageMintScript =
     s"""{ 
-       |  // this box: (arbitrage-mint box)
+       |  // This box: (arbitrage-mint box)
        |  // 
        |  // TOKENS
        |  //   tokens(0): Arbitrage-mint NFT
@@ -172,14 +190,14 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
   // free mint box
   val freeMintScript =
     s"""{  
-       |  // this box: (free-mint box)
+       |  // This box: (free-mint box)
        |  // 
        |  // TOKENS
        |  //   tokens(0): Free-mint NFT
        |  // 
        |  // REGISTERS
        |  //   R4: (Int) height at which counter will reset
-       |  //   R5: (Long) remaining stablecoins available to be purchased before counter is reset
+       |  //   R5: (Long) remaining Dexy tokens available to be purchased before counter is reset
        |  // 
        |  // TRANSACTIONS
        |  // [1] Free Mint
@@ -258,9 +276,9 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    // This box: (LP box)
        |    //
        |    // TOKENS
-       |    //   Tokens(0): LP NFT to uniquely identify NFT box. (Could we possibly do away with this?) 
+       |    //   Tokens(0): NFT to uniquely identify LP box. 
        |    //   Tokens(1): LP tokens
-       |    //   Tokens(2): Y tokens (Note that X tokens are NanoErgs (the value)
+       |    //   Tokens(2): Y tokens, the Dexy tokens (Note that X tokens are NanoErgs (the value)
        |    //
        |    // REGISTERS
        |    //   R1 (value): X tokens in NanoErgs 
@@ -424,10 +442,10 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    //   tokens(0): Tracking NFT
        |    // 
        |    // REGISTERS
-       |    //   R4: Int (num) (i.e., numerator -- see below)
-       |    //   R5: Int (denom) (i.e., denominator -- see below)
-       |    //   R6: Boolean (isBelow) (explained below)
-       |    //   R7: Int (trackingHeight) (explained below)
+       |    //   R4: Int (numerator)
+       |    //   R5: Int (denominator)
+       |    //   R6: Boolean (isBelow, a flat indicating the type of tracking) 
+       |    //   R7: Int (trackingHeight) 
        |    // 
        |    // TRANSACTIONS 
        |    // [1] Update tracking
@@ -435,10 +453,20 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    // -----------------------------------------------
        |    // 0 Tracking box  |  Tracking box  |   LP
        |    //
-       |    // Whenever LP box gets updated and tracker must be triggered or reset, 
-       |    // someone must spend this box keeping LP as data input 
+       |    
+       |    // 
+       |    // A "tracker" is like a monitor that triggers an alarm when an event occurs. 
+       |    // The alarm continues to "ring" until the tracker resets the alarm, which can only happen after the event has ended.
+       |    // Thus, if the alarm is in a "triggered" state, we can be sure that the event is ongoing (i.e., not yet ended).
+       |    // In our case, the event we are monitoring is the ratio of LP rate and Oracle rate going below (or above) some value.
+       |    // The registers define the ratio to monitor (R4, R5) and whether we are monitoring above or below (R6), along with 
+       |    // the height at which the trigger occurred (R6) if the event is ongoing or "infinity" if the event has ended. 
+       |    
+       |    // This box is be spent whenever tracker state must change i.e., move from trigger to reset or vice versa 
+       |    // This box can only be be spent if the tracker state changes.
+       |    // Someone must spend this box keeping LP as data input.
        |      
-       |    val threshold = 3 // error threshold 
+       |    val threshold = 3 // error threshold in trigger height 
        |    
        |    val oracleBoxIndex = 0
        |    val lpBoxIndex = 1
@@ -448,7 +476,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    val oracleBox = CONTEXT.dataInputs(oracleBoxIndex)
        |    val successor = OUTPUTS(selfOutIndex)
        |    
-       |    val tokenY     = lpBox.tokens(2)
+       |    val tokenY     = lpBox.tokens(2)  // Dexy tokens
        |    
        |    val validLp = lpBox.tokens(0)._1 == fromBase64("${Base64.encode(lpNFT.decodeHex)}") // to identify LP box
        |    
