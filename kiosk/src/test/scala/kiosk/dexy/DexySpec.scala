@@ -70,7 +70,10 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  // It does not does not encode the emission logic. It just requires certain boxes in the inputs to contain certain NFTs. 
        |  // Those boxes in turn encode the emission logic (and logic for other auxiliary flows, such as intervention).
        |  // The minting logic (that emits Dexy tokens) is encoded in the FreeMint and ArbitrageMint boxes
-       |  
+       |
+       |  // Oracle data:
+       |  // R4 of the oracle contains the rate "nanoErgs per USD" in Long format  
+       |       
        |  val selfOutIndex = 1        // 2nd output is self copy
        |  val mintInIndex = 0         // 1st input is mint (or LP box in case of intervention, which we ensure in intervention box)
        |  val interventionInIndex = 2 // 3rd input is intervention box
@@ -113,6 +116,9 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  // ------------------------------------------------
        |  // 0 ArbitrageMint |  ArbitrageMint  |   Oracle 
        |  // 1 Bank          |  Bank           |   LP
+       |  
+       |  // Oracle data:
+       |  // R4 of the oracle contains the rate "nanoErgs per USD" in Long format  
        |
        |  val bankInIndex = 1
        |  val selfOutIndex = 0
@@ -123,6 +129,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  val oracleNFT = fromBase64("${Base64.encode(oracleNFT.decodeHex)}") // to identify oracle pool box
        |  val bankNFT = fromBase64("${Base64.encode(bankNFT.decodeHex)}") 
        |  val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}")
+       |  
        |  val T_arb = 30 // 30 blocks = 1 hour
        |  val thresholdPercent = 101 // 101% or more value (of LP in terms of OraclePool) will trigger action
        |  
@@ -206,6 +213,10 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  // 0 FreeMint |  FreeMint |   Oracle
        |  // 1 Bank     |  Bank     |   LP
        |
+       |  
+       |  // Oracle data:
+       |  // R4 of the oracle contains the rate "nanoErgs per USD" in Long format  
+       |
        |  val bankInIndex = 1
        |  val selfOutIndex = 0
        |  val bankOutIndex = 1
@@ -215,6 +226,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  val oracleNFT = fromBase64("${Base64.encode(oracleNFT.decodeHex)}") // to identify oracle pool box
        |  val bankNFT = fromBase64("${Base64.encode(bankNFT.decodeHex)}") 
        |  val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}")
+       |  
        |  val t_free = 100
        |  
        |  val feeNum = 10
@@ -326,15 +338,21 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    // 
        |    // X is the primary token
        |    // Y is the secondary token 
-       |    // When using Erg-USD oracle v1, X is NanoErg and Y is USD   
-       |    
+       |    // In DexyUSD, X is NanoErg and Y is USD   
+       |
+       |    // Oracle data:
+       |    // R4 of the oracle contains the rate "nanoErgs per USD" in Long format  
+       |
        |    val selfOutIndex = 0
        |    val oracleBoxIndex = 0
-       |
        |    val interventionBoxIndex = 2 // ToDo: fix if possible, otherwise each tx needs at least 3 inputs (add dummy inputs for now)
-       |    val interventionBox = INPUTS(interventionBoxIndex) // see above comment ^ 
-       |     
        |    val extractBoxIndex = 1
+       |    
+       |    val oracleNFT = fromBase64("${Base64.encode(oracleNFT.decodeHex)}") // to identify oracle pool box
+       |    val interventionNFT = fromBase64("${Base64.encode(interventionNFT.decodeHex)}") 
+       |    val extractionNFT = fromBase64("${Base64.encode(extractionNFT.decodeHex)}")
+       |    
+       |    val interventionBox = INPUTS(interventionBoxIndex) 
        |    val extractBox = INPUTS(extractBoxIndex)  
        |     
        |    // constants
@@ -348,9 +366,10 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    
        |    val successor = OUTPUTS(selfOutIndex) // copy of this box after exchange
        |    val oracleBox = CONTEXT.dataInputs(oracleBoxIndex) // oracle pool box
-       |    val validOraclePoolBox = oracleBox.tokens(0)._1 == fromBase64("${Base64.encode(oracleNFT.decodeHex)}") // to identify oracle pool box 
-       |    val validIntervention = interventionBox.tokens(0)._1 == fromBase64("${Base64.encode(interventionNFT.decodeHex)}") 
-       |    val validExtraction = extractBox.tokens(0)._1 == fromBase64("${Base64.encode(extractionNFT.decodeHex)}") 
+       |    
+       |    val validOracleBox = oracleBox.tokens(0)._1 == oracleNFT 
+       |    val validIntervention = interventionBox.tokens(0)._1 == interventionNFT 
+       |    val validExtraction = extractBox.tokens(0)._1 == extractionNFT 
        |    
        |    val lpNFT0    = SELF.tokens(0)
        |    val reservedLP0 = SELF.tokens(1)
@@ -423,7 +442,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    sigmaProp(
        |        validSupplyLP1            &&
        |        validSuccessorScript      &&
-       |        validOraclePoolBox        &&
+       |        validOracleBox            &&
        |        preservedLpNFT            &&
        |        validLpBox                &&
        |        validY                    &&
@@ -444,23 +463,27 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    // REGISTERS
        |    //   R4: Int (numerator)
        |    //   R5: Int (denominator)
-       |    //   R6: Boolean (isBelow, a flat indicating the type of tracking) 
+       |    //   R6: Boolean (isBelow, a flag indicating the type of tracking) 
        |    //   R7: Int (trackingHeight) 
        |    // 
        |    // TRANSACTIONS 
-       |    // [1] Update tracking
+       |    // [1] Update tracker
        |    //   Input         |  Output        |   Data-Input 
        |    // -----------------------------------------------
-       |    // 0 Tracking box  |  Tracking box  |   LP
-       |    //
+       |    // 0 Tracking box  |  Tracking box  |   Oracle 
+       |    // 1               |                |   LP
        |    
+       |  
+       |    // Oracle data:
+       |    // R4 of the oracle contains the rate "nanoErgs per USD" in Long format  
+       |
        |    // 
        |    // A "tracker" is like a monitor that triggers an alarm when an event occurs. 
        |    // The alarm continues to "ring" until the tracker resets the alarm, which can only happen after the event has ended.
        |    // Thus, if the alarm is in a "triggered" state, we can be sure that the event is ongoing (i.e., not yet ended).
        |    // In our case, the event we are monitoring is the ratio of LP rate and Oracle rate going below (or above) some value.
        |    // The registers define the ratio to monitor (R4, R5) and whether we are monitoring above or below (R6), along with 
-       |    // the height at which the trigger occurred (R6) if the event is ongoing or "infinity" if the event has ended. 
+       |    // the height at which the trigger occurred (R7). The value in R7 will be "infinity" if the event has ended. 
        |    
        |    // This box is be spent whenever tracker state must change i.e., move from trigger to reset or vice versa 
        |    // This box can only be be spent if the tracker state changes.
@@ -470,24 +493,27 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    
        |    val oracleBoxIndex = 0
        |    val lpBoxIndex = 1
-       |    val selfOutIndex = getVar[Int](0).get
+       |    val selfOutIndex = 0
        |
+       |    val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}") // to identify LP box 
+       |    val oracleNFT = fromBase64("${Base64.encode(oracleNFT.decodeHex)}") // to identify oracle pool box
+       |    
        |    val lpBox = CONTEXT.dataInputs(lpBoxIndex)
        |    val oracleBox = CONTEXT.dataInputs(oracleBoxIndex)
        |    val successor = OUTPUTS(selfOutIndex)
        |    
-       |    val tokenY     = lpBox.tokens(2)  // Dexy tokens
+       |    val tokenY = lpBox.tokens(2)  // Dexy USDtokens
        |    
-       |    val validLp = lpBox.tokens(0)._1 == fromBase64("${Base64.encode(lpNFT.decodeHex)}") // to identify LP box
+       |    val validLp = lpBox.tokens(0)._1 == lpNFT
        |    
-       |    val validOraclePoolBox = oracleBox.tokens(0)._1 == fromBase64("${Base64.encode(oracleNFT.decodeHex)}") // to identify oracle pool box
+       |    val validOracleBox = oracleBox.tokens(0)._1 == oracleNFT
        |    val validSuccessor = successor.tokens == SELF.tokens                      && 
        |                         successor.propositionBytes == SELF.propositionBytes  && 
        |                         SELF.value <= successor.value
        |
        |    val oracleRateXY = oracleBox.R4[Long].get
        |    val reservesX = lpBox.value
-       |    val reservesY = tokenY._2
+       |    val reservesY = tokenY._2   // Dexy tokens quantity
        |    val lpRateXY = reservesX / reservesY  // we can assume that reservesY > 0 (since at least one token must exist)
        |
        |    // Let t = num/denom
@@ -498,7 +524,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    // Let r be the ratio "oracle pool rate" / "LP rate", where the term "rate" denotes "Ergs per dexy"
        |    // Now, if "isBelow" is true (i.e. "lower" tracking), then the tracker will be triggered when r goes below t and will be reset once r goes above t
        |    
-       |    // there will be following tracking boxes:
+       |    // there are three tracking boxes as of now:
        |    // box # | num | denom | height | isBelow
        |    // ------+-----+-------+--------+--------
        |    // 1     | 95  | 100   | _      | true     (for extracting to future)
@@ -535,23 +561,24 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |        val x = oracleRateXY * denomIn
        |        val y = numIn * lpRateXY
        |        
-       |        val notTriggeredEarlier = trackerHeightIn == ${Int.MaxValue}
-       |        val triggeredNow = trackerHeightOut >= HEIGHT - threshold && trackerHeightOut <= HEIGHT
+       |        val notTriggeredEarlier = trackerHeightIn == ${Int.MaxValue}  // Infinity
+       |        val triggeredNow = trackerHeightOut >= HEIGHT - threshold && 
+       |                           trackerHeightOut <= HEIGHT  
        |         
-       |        val notResetEarlier = trackerHeightIn < ${Int.MaxValue}
-       |        val resetNow = trackerHeightOut == ${Int.MaxValue}
+       |        val notResetEarlier = trackerHeightIn < ${Int.MaxValue}       // Less than Infinity
+       |        val resetNow = trackerHeightOut == ${Int.MaxValue}            // Infinity
        |         
        |        val trigger = ((isBelowIn && x < y) || (!isBelowIn && x > y)) && notTriggeredEarlier && triggeredNow
        |        val reset = (isBelowIn && x >= y) || (!isBelowIn && x <= y) && notResetEarlier && resetNow   
-       |        val correctHeight = trigger || reset  
+       |        val correctAction = trigger || reset  
        |        
        |        numOut == numIn          && 
        |        denomOut == denomIn      && 
        |        isBelowOut == isBelowIn  && 
-       |        correctHeight
+       |        correctAction
        |    }
        |    
-       |    sigmaProp(validSuccessor && validLp && validTracking && validOraclePoolBox)
+       |    sigmaProp(validSuccessor && validLp && validTracking && validOracleBox)
        |}
        |""".stripMargin
 
@@ -583,7 +610,8 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  val lastIntervention = SELF.creationInfo._1
        |  val buffer = 3 // error margin in height
        |  val T = 100 // from paper, gap between two interventions
-       |  val T_int = 20 // blocks after which a trigger swap event can be completed, provided rate has not crossed oracle pool rate 
+       |  val T_int = 20 // blocks after which a trigger swap event can be completed, provided rate has not crossed oracle pool rate
+       |   
        |  val bankNFT = fromBase64("${Base64.encode(bankNFT.decodeHex)}") 
        |  val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}") 
        |  val oracleNFT = fromBase64("${Base64.encode(oracleNFT.decodeHex)}")
@@ -618,7 +646,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |   
        |  val validThreshold = lpRateXYIn * 100 < thresholdPercent * oracleRateXY
        |   
-       |  val validOraclePoolBox = oracleBox.tokens(0)._1 == oracleNFT 
+       |  val validOracleBox = oracleBox.tokens(0)._1 == oracleNFT 
        |  val validTrackingBox = trackingBox.tokens(0)._1 == tracking98NFT
        |   
        |  val validLpBox = lpBoxIn.tokens(0)._1 == lpNFT
@@ -654,7 +682,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |                  validBankBoxOut                             &&
        |                  validSuccessor                              &&
        |                  validLpBox                                  &&
-       |                  validOraclePoolBox                          &&
+       |                  validOracleBox                              &&
        |                  validTrackingBox                            &&
        |                  validThreshold                              &&
        |                  validLpIn                                   && 
