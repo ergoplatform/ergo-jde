@@ -143,7 +143,12 @@ In this work, we describe \algname, yet another privacy enhancing protocol based
 \subsection{Notation}
 
 Let $G$ be a cyclic group of prime order $q$ where the Decisional-Diffie-Hellman (DDH) problem is hard and let $g, h, u, v$ be generators of $G$.
-In the following, {\em proveDlog$(g, u)$} refers to a zero-knowledge proof of knowledge of discrete logarithm of $u$ to base $g$ and {\em proveDHTuple$(g, h, u, v)$} refers to a zero-knowledge proof of equality of the following two discrete logarithms: $u$ to base $g$ and $v$ to base $h$. The proofs are described in Appendices~\ref{provedlog} and~\ref{provedhtuple} respectively, and are implemented using {\em Sigma protocols}~\cite{zerojoin,CDS94}.
+In the following, {\em proveDlog$(g, u)$} refers to a zero-knowledge proof of knowledge of discrete logarithm of $u$ to base $g$ and
+{\em proveDHTuple$(g, h, u, v)$} refers to a zero-knowledge proof of equality of the following two discrete logarithms: $u$ to base $g$ and $v$ to base $h$.
+Observe that {\em proveDHTuple$(a, a, b, b)$} = {\em proveDlog$(a, b)$} for any $a, b$. We will use this relationship to emulate {\em proveDlog}
+in ErgoScript, our underlying smart contract language.
+
+The proofs are described in Appendices~\ref{provedlog} and~\ref{provedhtuple} respectively, and are implemented using {\em Sigma protocols}~\cite{zerojoin,CDS94}.
 For any two sigma protocols $\sigma_1$ and $\sigma_2$, the symbol $\sigma_2 \textsf{ OR } \sigma_2$ refers to the zero-knowledge OR described in Appendix~\ref{sigmaor}, that is, a proof of knowledge of one of them without revealing which~\cite{CDS94}.
 
 \subsection{Basic idea}
@@ -206,10 +211,10 @@ $$\text{\em proveDHTuple$(a, b, a_0, b_0)\textsf{ OR }$proveDHTuple$(a, b, a_1, 
 
 \subsection{Ergo and ErgoScript}
 
-We implement our protocol in ErgoScript, the scripting language of the Ergo blockchain~\cite{ergo,tutorial}. We use Ergo because it has the {\em proveDHTuple} protocol built-in, is UTXO based and supports advanced scripts at context level C3~\cite{bypassing}. ErgoScript is a strict subset of the Scala language. It allows accessing the inputs and outputs of the transaction and specifying arbitrary constraints on them.
-ErgoScript has a restricted form of {\em proveDlog$(*, *)$}, namely {\em proveDlog$(g, *)$}, where $g$ is fixed.
-This is denoted as {\em proveDlog$(*)$}. We can overcome this limitation using the rule {\em proveDlog$(a, b)$} = {\em proveDHTuple$(a, a, b, b)$}.
-
+We implement our protocol in ErgoScript, the scripting language of the Ergo blockchain~\cite{ergo,tutorial}.
+We use Ergo because it has the {\em proveDHTuple} protocol built-in, is UTXO based and supports advanced scripts at
+context level C3~\cite{bypassing}. ErgoScript is a strict subset of the Scala language.
+It allows accessing the inputs and outputs of the transaction and specifying arbitrary constraints on them.
 Data in Ergo boxes is stored in up to 10 registers labeled R0 to R9, out of which R0 to R3 are reserved by the protocol and the remaining are for user-defined values~\cite{tutorial}. We use the following mapping: $a \rightarrow$ R4 and $b \rightarrow$ R5.
 
 The object to be proved, the content of a script is called a {\em proposition}, which consists of either one or two {\em statements}. A statement evaluates to \texttt{true} or \texttt{false} during
@@ -341,7 +346,6 @@ One of the challenging problems in mix protocols is that of mining fee. Since th
 \begin{enumerate}
 \item {\em Embedded}: The fee must be embedded in the mix boxes themselves. This is the primary approach is followed in \ergomix~\cite{zerojoin} via {\em mixing tokens}.
 \item {\em External}: The fee is paid by a third party who has no relationship with the participants. An example is the {\em altruistic fee} approach described in \cite{zerojoin}.
-In this work, we propose {\em outsourced fee}, another external approach.
 \end{enumerate}
 
 While the embedded fee approaches of~\cite{zerojoin} will also work with \algname,
@@ -545,6 +549,9 @@ In order to ensure unlimited supply of companion mix boxes, we must incentivize 
 This can be achieved by rewarding boxes in $P$ via stealth payments to the user's public key $(a, b)$ (stored in R4, R5 of the mix box). As before,
 this is done by creating a box protected by the script \texttt{proveDHTuple}$(a^r, a^r, b^r, b^r)$ for secret $r$~\cite{stealth-payments}.
 The boxes getting the reward can be selected randomly, possibly based on the tokens being mixed. For instance, one may want to reward only boxes holding SigmaUSD~\cite{sigma-usd} tokens.
+
+Note that such incentives must be spent carefully lest they leak information about the box owner. Ideally they should be used for
+stealth payments only.
 
 \section{Future Work}
 

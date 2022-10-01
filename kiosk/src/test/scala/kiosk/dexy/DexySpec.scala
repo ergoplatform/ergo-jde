@@ -15,7 +15,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
   // Main boxes:
   //   1. Bank box that emits Dexy tokens
   //   2. Liquidity pool (LP) box that allows swapping Dexy with Ergs
-  //   3. Oracle (pool) box that has the rate of Erg/USD
+  //   3. Oracle (pool) box that has the rate of Erg/USD in R4 (Long) in units nanoErgs per USD
 
   // tokens for main boxes
   val oracleNFT = "472B4B6250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
