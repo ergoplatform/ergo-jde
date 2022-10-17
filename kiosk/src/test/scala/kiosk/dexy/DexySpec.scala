@@ -35,6 +35,8 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
   val tracking95NFT = "261A3A5250655368566D597133743677397A24432646294A404D635166546A55" // TODO replace with actual
   val tracking101NFT = "261A3A5250655368566D597133743677397A24432646294A404D635166546A58" // TODO replace with actual
 
+  val initialDexyTokens = 10000000000000L
+
   val bankScript =
     s"""{ 
        |  // This box: (Bank box)
@@ -69,8 +71,8 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  // [4] Payout
        |  //   Input         |  Output        |   Data-Input 
        |  // -----------------------------------------------
-       |  // 0 Payout        |  Payout        |   
-       |  // 2 Bank          |  Bank          |
+       |  // 0 Payout        |  Payout        |   Oracle
+       |  // 2 Bank          |  Bank          |   LP
        |  // 3               |  Reward        | 
        |  
        |  // This box emits DexyUSD. The contract only enforces some basic rules (such as the contract and token Ids) are preserved.  
@@ -324,8 +326,8 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  // [1] Payout
        |  //   Input    |  Output   |   Data-Input
        |  // -------------------------------------
-       |  // 0 Payout   |  Payout   |   
-       |  // 1 Bank     |  Bank     |
+       |  // 0 Payout   |  Payout   |   Oracle
+       |  // 1 Bank     |  Bank     |   LP
        |  // 2          |  Reward   | 
        |  
        |  // In the above transaction, the "payouts" (rewards) will be stored in a "Reward" box
@@ -335,7 +337,10 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  val payoutThreshold = 100000000000000L // nanoErgs (100000 Ergs)
        |  val maxPayOut = 100000000000L // 100 Ergs
        |  val minPayOut = 10000000000L  // 10 Ergs
-       |  
+       |
+       |  val oracleNFT = fromBase64("${Base64.encode(oracleNFT.decodeHex)}") // to identify oracle pool box
+       |  val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}")
+       |
        |  // inputs indices
        |  val bankInIndex = 1
        |  
@@ -344,18 +349,60 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  val bankOutIndex = 1
        |  val rewardOutIndex = 2
        |  
+       |  // data inputs indices
+       |  val oracleIndex = 0
+       |  val lpIndex = 1
+       |  
        |  val bankBoxIn = INPUTS(bankInIndex)
        |  
        |  val bankBoxOut = OUTPUTS(bankOutIndex)
        |  val successor = OUTPUTS(selfOutIndex) 
        |  val rewardBoxOut = OUTPUTS(rewardOutIndex)
        |  
+       |  val oracleBox = CONTEXT.dataInputs(oracleIndex)
+       |  val lpBox = CONTEXT.dataInputs(lpIndex)
+       |  
+       |  val validOracle = oracleBox.tokens(0)._1 == oracleNFT
+       |  val validLP = lpBox.tokens(0)._1 == lpNFT
+       |  
        |  val payoutScriptHash = SELF.R4[Coll[Byte]].get // payout script hash
        |  val successorR4 = successor.R4[Coll[Byte]].get // should be same as selfR4
        |
+       |  val lpReservesX = lpBox.value
+       |  val lpReservesY = lpBox.tokens(2)._2 // dexyReserves
+       |
+       |  val bankDexy = bankBoxIn.tokens(1)._2
+       |  
        |  val ergsRemoved = bankBoxOut.value - bankBoxIn.value
        |  val ergsTaken = rewardBoxOut.value
        | 
+       |  val oracleRate = oracleBox.R4[Long].get // nanoErgs per USD
+       |  
+       |  val lpRate = lpReservesX / lpReservesY 
+       |  
+       |  val dexyInCirculation = ${initialDexyTokens}L - bankDexy
+       |  
+       |  // referring to the section "4 Worst Scenario and Bank Reserves" in paper, the following notation is used
+       |  val O = dexyInCirculation // (note: capital o, not zero)
+       |  val p = lpRate // initial rate
+       |  val s = oracleRate // final lower rate after crash
+       |  val e = lpReservesX // Ergs in LP
+       |  val u = lpReservesY // Dexy in LP
+       |  
+       |  // we also use the symbol b = bankBoxOut.value (Remaining (nano)Ergs in bank) 
+       |  val b = bankBoxOut.value
+       |  
+       |  // We want finalErgs in bank, b > sqrt(e * u / s) - e + O / s
+       |  // or                         b + e - O / s > sqrt(e * u / s)
+       |  // let x = b + e - O / s
+       |  // then we need               x ^ 2 > e * u / s
+       |  
+       |  val x = b.toBigInt + e - O / s
+       |  
+       |  val y = e.toBigInt * u / s
+       |  
+       |  val handledWorstCase = x * x > y
+       |   
        |  // no need to validate bank NFT here
        |  val validBank = bankBoxOut.propositionBytes == bankBoxIn.propositionBytes && // script preserved
        |                  bankBoxOut.tokens == bankBoxIn.tokens                     && // tokens preserved
@@ -371,7 +418,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |                    ergsTaken >= minPayOut                                        && // cannot take too little (dust, etc) 
        |                    ergsTaken <= maxPayOut                                           // cannot take too much
        |                      
-       |  sigmaProp(validBank && validSuccessor && validPayout)
+       |  sigmaProp(validBank && validSuccessor && validPayout && validOracle && validLP && handledWorstCase)
        |}
        |""".stripMargin
 
