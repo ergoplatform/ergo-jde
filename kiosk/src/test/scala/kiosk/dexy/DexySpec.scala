@@ -381,8 +381,11 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |  val lpRate = lpReservesX / lpReservesY 
        |  
        |  val dexyInCirculation = ${initialDexyTokens}L - bankDexy
-       |  
-       |  // referring to the section "4 Worst Scenario and Bank Reserves" in paper, the following notation is used
+       |
+       |  // We have the parameter payoutThreshold for ensuring that the bank has at least that many ergs
+       |  // before payout. However, we need to also ensure that there are enough ergs in the bank to
+       |  // cover the "worst case scenario" described in  section "4 Worst Scenario and Bank Reserves" in paper,
+       |  // The following notation is used
        |  val O = dexyInCirculation // (note: capital o, not zero)
        |  val p = lpRate // initial rate
        |  val s = oracleRate // final lower rate after crash
