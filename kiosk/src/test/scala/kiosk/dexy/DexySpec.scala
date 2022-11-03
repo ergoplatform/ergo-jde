@@ -1,22 +1,10 @@
 package kiosk.dexy
 
 import kiosk.encoding.ScalaErgoConverters.{getAddressFromErgoTree, getStringFromAddress}
-import scorex.util.encode.Base64
 import kiosk.ergo._
 import kiosk.script.ScriptUtil
-import org.ergoplatform.appkit.HttpClientTesting
-import org.scalatest.{Matchers, PropSpec}
-import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-
-class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyChecks with HttpClientTesting {
-
-  // High level idea:
-  // There are 3 main boxes in the protocol, and the others are auxiliary boxes to manage the main boxes
-  // Main boxes:
-  //   1. Bank box that emits Dexy tokens
-  //   2. Liquidity pool (LP) box that allows swapping Dexy with Ergs
-  //   3. Oracle (pool) box that has the rate of Erg/USD in R4 (Long) in units nanoErgs per USD
-
+import scorex.util.encode.Base64
+object DexySpec {
   // tokens for main boxes
   val oracleNFT = "472B4B6250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val bankNFT = "861A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
@@ -35,9 +23,16 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
   val tracking95NFT = "261A3A5250655368566D597133743677397A24432646294A404D635166546A55" // TODO replace with actual
   val tracking101NFT = "261A3A5250655368566D597133743677397A24432646294A404D635166546A58" // TODO replace with actual
 
-  val initialDexyTokens = 10000000000000L
+  // High level idea:
+  // There are 3 main boxes in the protocol, and the others are auxiliary boxes to manage the main boxes
+  // Main boxes:
+  //   1. Bank box that emits Dexy tokens
+  //   2. Liquidity pool (LP) box that allows swapping Dexy with Ergs
+  //   3. Oracle (pool) box that has the rate of Erg/USD in R4 (Long) in units nanoErgs per USD
 
-  val bankScript =
+  lazy val initialDexyTokens = 10000000000000L
+
+  lazy val bankScript =
     s"""{ 
        |  // This box: (Bank box)
        |  // 
@@ -312,7 +307,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |""".stripMargin
 
   // payout box
-  val payoutScript =
+  lazy val payoutScript =
     s"""{  
        |  // This box: (payout box)
        |  // 
@@ -426,7 +421,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |""".stripMargin
 
   // below contract is adapted from N2T DEX contract in EIP-14 https://github.com/ergoplatform/eips/blob/de30f94ace1c18a9772e1dd0f65f00caf774eea3/eip-0014.md?plain=1#L558-L636
-  val lpScript =
+  lazy val lpScript =
     s"""{
        |    // This box: (LP box)
        |    //
@@ -438,7 +433,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |    // REGISTERS
        |    //   R1 (value): X tokens in NanoErgs 
        |    //   R4: How many LP in circulation (long). This can be non-zero when bootstrapping, to consider the initial token burning in UniSwap v2
-       |    //   
+       |    //
        |    // TRANSACTIONS
        |    //
        |    // [1] Intervention
@@ -712,7 +707,7 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
        |        val resetNow = trackerHeightOut == ${Int.MaxValue}            // Infinity
        |         
        |        val trigger = ((isBelowIn && x < y) || (!isBelowIn && x > y)) && notTriggeredEarlier && triggeredNow
-       |        val reset = (isBelowIn && x >= y) || (!isBelowIn && x <= y) && notResetEarlier && resetNow   
+       |        val reset = ((isBelowIn && x >= y) || (!isBelowIn && x <= y)) && notResetEarlier && resetNow
        |        val correctAction = trigger || reset  
        |        
        |        numOut == numIn          && 
@@ -976,50 +971,52 @@ class DexySpec extends PropSpec with Matchers with ScalaCheckDrivenPropertyCheck
 
   val bankErgoTree = ScriptUtil.compile(Map(), bankScript)
   val bankAddress = getStringFromAddress(getAddressFromErgoTree(bankErgoTree))
-  println(s"Bank: $bankAddress")
-  println(bankScript)
-  println()
-
   val arbitrageMintErgoTree = ScriptUtil.compile(Map(), arbitrageMintScript)
   val arbitrageMintAddress = getStringFromAddress(getAddressFromErgoTree(arbitrageMintErgoTree))
-  println(s"ArbitrageMint: $arbitrageMintAddress")
-  println(arbitrageMintScript)
-  println()
-
   val freeMintErgoTree = ScriptUtil.compile(Map(), freeMintScript)
   val freeMintAddress = getStringFromAddress(getAddressFromErgoTree(freeMintErgoTree))
-  println(s"FreeMint: $freeMintAddress")
-  println(freeMintScript)
-  println()
-
   val payoutErgoTree = ScriptUtil.compile(Map(), payoutScript)
   val payoutAddress = getStringFromAddress(getAddressFromErgoTree(payoutErgoTree))
-  println(s"Payout: $payoutAddress")
-  println(payoutScript)
-  println()
-
   val lpErgoTree = ScriptUtil.compile(Map(), lpScript)
   val lpAddress = getStringFromAddress(getAddressFromErgoTree(lpErgoTree))
-  println(s"LP: $lpAddress")
-  println(lpScript)
-  println()
-
   val trackingErgoTree = ScriptUtil.compile(Map(), trackingScript)
   val trackingAddress = getStringFromAddress(getAddressFromErgoTree(trackingErgoTree))
-  println(s"Tracking: $trackingAddress")
-  println(trackingScript)
-  println()
-
   val extractErgoTree = ScriptUtil.compile(Map(), extractScript)
   val extractAddress = getStringFromAddress(getAddressFromErgoTree(extractErgoTree))
-  println(s"Extract: $extractAddress")
-  println(extractScript)
-  println()
-
   val interventionErgoTree = ScriptUtil.compile(Map(), interventionScript)
   val interventionAddress = getStringFromAddress(getAddressFromErgoTree(interventionErgoTree))
-  println(s"Intervention: $interventionAddress")
-  println(interventionScript)
-  println()
 
+  def main(args: Array[String]): Unit = {
+    println(s"Bank: $bankAddress")
+    println(bankScript)
+    println()
+
+    println(s"ArbitrageMint: $arbitrageMintAddress")
+    println(arbitrageMintScript)
+    println()
+
+    println(s"FreeMint: $freeMintAddress")
+    println(freeMintScript)
+    println()
+
+    println(s"Payout: $payoutAddress")
+    println(payoutScript)
+    println()
+
+    println(s"LP: $lpAddress")
+    println(lpScript)
+    println()
+
+    println(s"Tracking: $trackingAddress")
+    println(trackingScript)
+    println()
+
+    println(s"Extract: $extractAddress")
+    println(extractScript)
+    println()
+
+    println(s"Intervention: $interventionAddress")
+    println(interventionScript)
+    println()
+  }
 }
