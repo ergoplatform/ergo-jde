@@ -20,20 +20,26 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
   val fakeTxId2 = "f9e5ce5aa0d95f5d54a7bc89c46730d9662397067250aa18a0039631c0f5b808"
   val fakeTxId3 = "f9e5ce5aa0d95f5d54a7bc89c46730d9662397067250aa18a0039631c0f5b807"
   val fakeTxId4 = "f9e5ce5aa0d95f5d54a7bc89c46730d9662397067250aa18a0039631c0f5b806"
-  val fakeTxId5 = "f9e5ce5aa0d95f5d54a7bc89c46730d9662397067250aa18a0039631c0f5b805"
   val fakeIndex = 1.toShort
   val changeAddress = "9gQqZyxyjAptMbfW1Gydm3qaap11zd6X9DrABwgEE9eRdRvd27p"
-  // following params will decide if its a valid tracking or not
 
   property("Trigger 98% tracker should work") {
+    // following params will decide if its a valid tracking or not
     val lpInCirc = 10000L
     val oracleRateXY = 10000L
     val lpBalance = 10000000L
     val reservesX = 10000000000L
     val reservesY = 1000000L
 
-    val denomIn = 49
+    val denomIn = 49 // 49/50 = 98%
     val numIn = 50
+
+    val lpRateXY = reservesX / reservesY
+    val x = oracleRateXY * denomIn
+    val y = numIn * lpRateXY
+
+    val toTrigger = x < y
+    assert(toTrigger)
 
     ergoClient.execute { implicit ctx: BlockchainContext =>
       val trackingHeightOut = ctx.getHeight
@@ -50,7 +56,7 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
 
 
       val oracleBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
@@ -61,7 +67,7 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .convertToInputWith(fakeTxId2, fakeIndex)
 
       val lpBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(reservesX)
@@ -72,7 +78,7 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .convertToInputWith(fakeTxId3, fakeIndex)
 
       val tracking98Box =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
@@ -86,13 +92,6 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .contract(ctx.compileContract(ConstantsBuilder.empty(), DexySpec.trackingScript))
           .build()
           .convertToInputWith(fakeTxId4, fakeIndex)
-
-      val lpRateXY = reservesX / reservesY
-      val x = oracleRateXY * denomIn
-      val y = numIn * lpRateXY
-
-      val toTrigger = x < y
-      assert (toTrigger)
 
       val validTrackingOutBox = KioskBox(
         trackingAddress,
@@ -140,7 +139,7 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
 
 
       val oracleBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
@@ -151,7 +150,7 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .convertToInputWith(fakeTxId2, fakeIndex)
 
       val lpBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(reservesX)
@@ -162,7 +161,7 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .convertToInputWith(fakeTxId3, fakeIndex)
 
       val tracking98Box =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
@@ -229,7 +228,7 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
 
 
       val oracleBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
@@ -240,7 +239,7 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .convertToInputWith(fakeTxId2, fakeIndex)
 
       val lpBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(reservesX)
@@ -251,7 +250,7 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .convertToInputWith(fakeTxId3, fakeIndex)
 
       val tracking98Box =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
@@ -318,7 +317,7 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
 
 
       val oracleBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
@@ -329,7 +328,7 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .convertToInputWith(fakeTxId2, fakeIndex)
 
       val lpBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(reservesX)
@@ -340,7 +339,7 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .convertToInputWith(fakeTxId3, fakeIndex)
 
       val tracking98Box =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
@@ -406,7 +405,7 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
 
 
       val oracleBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
@@ -417,7 +416,7 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .convertToInputWith(fakeTxId2, fakeIndex)
 
       val lpBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(reservesX)
@@ -428,7 +427,7 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .convertToInputWith(fakeTxId3, fakeIndex)
 
       val tracking98Box =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
