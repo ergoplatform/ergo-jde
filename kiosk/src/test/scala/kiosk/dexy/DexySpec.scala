@@ -32,6 +32,8 @@ object DexySpec {
 
   lazy val initialDexyTokens = 10000000000000L
 
+  val initialLp = 100000000000L // initially how many Lp minted (and we need to add that many to tokens(1), after removing some for token burning as in UniSwap v2)
+
   val feeNumLp = 3
   val feeDenomLp = 1000
 
@@ -433,10 +435,6 @@ object DexySpec {
        |    //   Tokens(1): LP tokens
        |    //   Tokens(2): Y tokens, the Dexy tokens (Note that X tokens are NanoErgs (the value)
        |    //
-       |    // REGISTERS
-       |    //   R1 (value): X tokens in NanoErgs
-       |    //   R4: How many LP in circulation (long). This can be non-zero when bootstrapping, to consider the initial token burning in UniSwap v2
-       |    //
        |    // TRANSACTIONS
        |    //
        |    // [1] Intervention
@@ -484,9 +482,12 @@ object DexySpec {
        |    // Oracle data:
        |    // R4 of the oracle contains the rate "nanoErgs per USD" in Long format
        |
+       |    val initialLp = ${initialLp}L   // How many LP initially minted. Used to compute Lp in circulation (supply Lp).
+       |    // Note that at bootstrap, we may have initialLp > tokens(1) quantity to consider the initial token burning in UniSwap v2
+       |
        |    val selfOutIndex = 0
        |    val oracleBoxIndex = 0
-       |    val interventionBoxIndex = 2 // ToDo: fix if possible, otherwise each tx needs at least 3 inputs (add dummy inputs for now)
+       |    val interventionBoxIndex = 2   // ToDo: fix if possible, otherwise each tx needs at least 3 inputs (add dummy inputs for now)
        |    val extractBoxIndex = 1
        |
        |    val oracleNFT = fromBase64("${Base64.encode(oracleNFT.decodeHex)}") // to identify oracle pool box
@@ -510,20 +511,20 @@ object DexySpec {
        |    val validExtraction   = extractBox.tokens(0)._1 == extractionNFT
        |    
        |    val lpNftIn      = SELF.tokens(0)
-       |    val reservedLpIn = SELF.tokens(1)
+       |    val lpReservesIn = SELF.tokens(1)
        |    val tokenYIn     = SELF.tokens(2)
        |
        |    val lpNftOut      = successor.tokens(0)
-       |    val reservedLpOut = successor.tokens(1)
+       |    val lpReservesOut = successor.tokens(1)
        |    val tokenYOut     = successor.tokens(2)
        |
-       |    val supplyLpIn = SELF.R4[Long].get       // LP tokens in circulation in input LP box
-       |    val supplyLpOut = successor.R4[Long].get  // LP tokens in circulation in output LP box
+       |    val supplyLpIn = initialLp - lpReservesIn._2     // LP tokens in circulation in input LP box
+       |    val supplyLpOut = initialLp - lpReservesOut._2     // LP tokens in circulation in output LP box
        |
        |    val validSuccessorScript = successor.propositionBytes == SELF.propositionBytes
        |    
        |    val preservedLpNft       = lpNftIn == lpNftOut
-       |    val validLpBox           = reservedLpOut._1 == reservedLpIn._1
+       |    val validLpBox           = lpReservesOut._1 == lpReservesIn._1
        |    val validY               = tokenYOut._1 == tokenYIn._1
        |    val validSupplyLpOut     = supplyLpOut >= 0
        |       
