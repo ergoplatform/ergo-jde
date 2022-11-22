@@ -10,7 +10,7 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 // Test Lp contracts for following path
 // Mint Lp tokens and redeem Lp tokens
-class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyChecks with HttpClientTesting {
+class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyChecks with HttpClientTesting {
   val lpToken = "4b2d8b7beb3eaac8234d9e61792d270898a43934d6a27275e4f3a044609c9f2a" // LP tokens
   val dexyUSD = "4b2d8b7beb3eaac8234d9e61792d270898a43934d6a27275e4f3a044609c9f2b" // Dexy token
 
@@ -28,31 +28,21 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
   val fakeIndex = 1.toShort
   val changeAddress = "9gQqZyxyjAptMbfW1Gydm3qaap11zd6X9DrABwgEE9eRdRvd27p"
 
-  property("Mint Lp (deposit Ergs and Dexy) should work") {
+  property("Redeem Lp (deposit Lp and withdraw Ergs + Dexy) should work") {
     val oracleRateXy = 10000L
     val lpBalanceIn = 100000000L
 
     val reservesXIn = 1000000000000L
     val reservesYIn = 100000000L
 
-    val depositX = 500000L
-    val depositY = 50L
+    val lpRedeemed = 49950L
+    val withdrawX = 500000L
+    val withdrawY = 50L
 
-    val reservesXOut = reservesXIn + depositX
-    val reservesYOut = reservesYIn + depositY
+    val reservesXOut = reservesXIn - withdrawX
+    val reservesYOut = reservesYIn - withdrawY
 
-    val deltaReservesX = depositX
-    val deltaReservesY = depositY
-
-    val supplyLpIn = initialLp - lpBalanceIn
-
-    val sharesUnlockedX = BigInt(deltaReservesX) * supplyLpIn / reservesXIn
-    val sharesUnlockedY = BigInt(deltaReservesY) * supplyLpIn / reservesYIn
-    val sharesUnlocked = sharesUnlockedX.min(sharesUnlockedY)
-
-    assert(sharesUnlocked == 49950)
-
-    val lpBalanceOut = lpBalanceIn - sharesUnlocked.toLong
+    val lpBalanceOut = lpBalanceIn + lpRedeemed
 
     ergoClient.execute { implicit ctx: BlockchainContext =>
 
@@ -61,7 +51,7 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .newTxBuilder()
           .outBoxBuilder
           .value(fakeNanoErgs)
-          .tokens(new ErgoToken(dexyUSD, depositY))
+          .tokens(new ErgoToken(lpToken, lpRedeemed))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
@@ -107,10 +97,10 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
         changeAddress,
         dummyNanoErgs,
         registers = Array(),
-        tokens = Array((lpToken, sharesUnlocked.toLong))
+        tokens = Array((dexyUSD, withdrawY))
       )
 
-      // all ok, mint should work
+      // all ok, redeem should work
       noException shouldBe thrownBy {
         TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
           Array(validLpOutBox, dummyOutputBox),
@@ -124,29 +114,21 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
     }
   }
 
-  property("Mint Lp should not work if more LP taken") {
+  property("Redeem Lp should not work if less LP deposited") {
     val oracleRateXy = 10000L
     val lpBalanceIn = 100000000L
 
     val reservesXIn = 1000000000000L
     val reservesYIn = 100000000L
 
-    val depositX = 500000L
-    val depositY = 50L
+    val lpRedeemed = 49950L - 1 // one less than needed
+    val withdrawX = 500000L
+    val withdrawY = 50L
 
-    val reservesXOut = reservesXIn + depositX
-    val reservesYOut = reservesYIn + depositY
+    val reservesXOut = reservesXIn - withdrawX
+    val reservesYOut = reservesYIn - withdrawY
 
-    val deltaReservesX = depositX
-    val deltaReservesY = depositY
-
-    val supplyLpIn = initialLp - lpBalanceIn
-
-    val sharesUnlockedX = BigInt(deltaReservesX) * supplyLpIn / reservesXIn
-    val sharesUnlockedY = BigInt(deltaReservesY) * supplyLpIn / reservesYIn
-    val sharesUnlocked = sharesUnlockedX.min(sharesUnlockedY) + 1 // unlocking one more share than allowed
-
-    val lpBalanceOut = lpBalanceIn - sharesUnlocked.toLong
+    val lpBalanceOut = lpBalanceIn + lpRedeemed
 
     ergoClient.execute { implicit ctx: BlockchainContext =>
 
@@ -155,7 +137,7 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .newTxBuilder()
           .outBoxBuilder
           .value(fakeNanoErgs)
-          .tokens(new ErgoToken(dexyUSD, depositY))
+          .tokens(new ErgoToken(lpToken, lpRedeemed))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
@@ -201,7 +183,7 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
         changeAddress,
         dummyNanoErgs,
         registers = Array(),
-        tokens = Array((lpToken, sharesUnlocked.toLong))
+        tokens = Array((dexyUSD, withdrawY))
       )
 
       an[Exception] shouldBe thrownBy {
@@ -217,35 +199,21 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
     }
   }
 
-  property("Can increase just Ergs (X tokens)") {
+  property("Redeem Lp should not work if more Ergs taken") {
     val oracleRateXy = 10000L
     val lpBalanceIn = 100000000L
 
     val reservesXIn = 1000000000000L
     val reservesYIn = 100000000L
 
-    val depositX = 500000L
-    val depositY = 0L // 0 dexy
+    val lpRedeemed = 49950L
+    val withdrawX = 500000L + 1 // one more than needed
+    val withdrawY = 50L
 
-    val reservesXOut = reservesXIn + depositX
-    val reservesYOut = reservesYIn + depositY
+    val reservesXOut = reservesXIn - withdrawX
+    val reservesYOut = reservesYIn - withdrawY
 
-    val deltaReservesX = depositX
-    val deltaReservesY = depositY
-
-    val supplyLpIn = initialLp - lpBalanceIn
-
-    val sharesUnlockedX = BigInt(deltaReservesX) * supplyLpIn / reservesXIn
-    val sharesUnlockedY = BigInt(deltaReservesY) * supplyLpIn / reservesYIn
-    val sharesUnlocked = sharesUnlockedX.min(sharesUnlockedY)
-
-    assert(sharesUnlocked == 0)
-
-    val lpBalanceOut = lpBalanceIn - sharesUnlocked.toLong
-
-    assert(lpBalanceOut == lpBalanceIn)
-
-    assert(reservesXOut > reservesXIn)
+    val lpBalanceOut = lpBalanceIn + lpRedeemed
 
     ergoClient.execute { implicit ctx: BlockchainContext =>
 
@@ -254,6 +222,7 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .newTxBuilder()
           .outBoxBuilder
           .value(fakeNanoErgs)
+          .tokens(new ErgoToken(lpToken, lpRedeemed))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
@@ -299,10 +268,10 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
         changeAddress,
         dummyNanoErgs,
         registers = Array(),
-        tokens = Array((lpToken, sharesUnlocked.toLong))
+        tokens = Array((dexyUSD, withdrawY))
       )
 
-      noException shouldBe thrownBy {
+      an[Exception] shouldBe thrownBy {
         TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
           Array(validLpOutBox, dummyOutputBox),
           fee = 1000000L,
@@ -315,37 +284,21 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
     }
   }
 
-  property("Can increase just Dexy (Y tokens)") {
+  property("Redeem Lp should not work if more Dexy taken") {
     val oracleRateXy = 10000L
     val lpBalanceIn = 100000000L
 
     val reservesXIn = 1000000000000L
     val reservesYIn = 100000000L
 
-    val depositX = 0L
-    val depositY = 50L
+    val lpRedeemed = 49950L
+    val withdrawX = 500000L
+    val withdrawY = 50L + 1 // one more than needed
 
-    val reservesXOut = reservesXIn + depositX
-    val reservesYOut = reservesYIn + depositY
+    val reservesXOut = reservesXIn - withdrawX
+    val reservesYOut = reservesYIn - withdrawY
 
-    val deltaReservesX = depositX
-    val deltaReservesY = depositY
-
-    val supplyLpIn = initialLp - lpBalanceIn
-
-    val sharesUnlockedX = BigInt(deltaReservesX) * supplyLpIn / reservesXIn
-    val sharesUnlockedY = BigInt(deltaReservesY) * supplyLpIn / reservesYIn
-    val sharesUnlocked = sharesUnlockedX.min(sharesUnlockedY)
-
-    assert(sharesUnlocked == 0)
-
-    val lpBalanceOut = lpBalanceIn - sharesUnlocked.toLong
-
-    assert(lpBalanceOut == lpBalanceIn)
-
-    assert(reservesXOut == reservesXIn)
-
-    assert(reservesYOut > reservesYIn)
+    val lpBalanceOut = lpBalanceIn + lpRedeemed
 
     ergoClient.execute { implicit ctx: BlockchainContext =>
 
@@ -354,7 +307,7 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .newTxBuilder()
           .outBoxBuilder
           .value(fakeNanoErgs)
-          .tokens(new ErgoToken(dexyUSD, depositY))
+          .tokens(new ErgoToken(lpToken, lpRedeemed))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
@@ -400,10 +353,10 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
         changeAddress,
         dummyNanoErgs,
         registers = Array(),
-        tokens = Array((lpToken, sharesUnlocked.toLong))
+        tokens = Array((dexyUSD, withdrawY))
       )
 
-      noException shouldBe thrownBy {
+      an[Exception] shouldBe thrownBy {
         TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
           Array(validLpOutBox, dummyOutputBox),
           fee = 1000000L,
@@ -416,32 +369,21 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
     }
   }
 
-  property("Can increase just LP tokens") {
+  property("Redeem Lp should not work if more Dexy and 0 Ergs taken") {
     val oracleRateXy = 10000L
     val lpBalanceIn = 100000000L
 
     val reservesXIn = 1000000000000L
     val reservesYIn = 100000000L
 
-    val depositX = 0L
-    val depositY = 0L
+    val lpRedeemed = 49950L
+    val withdrawX = 0L // 0 Ergs
+    val withdrawY = 50L + 1 // one more than needed
 
-    val reservesXOut = reservesXIn + depositX
-    val reservesYOut = reservesYIn + depositY
+    val reservesXOut = reservesXIn - withdrawX
+    val reservesYOut = reservesYIn - withdrawY
 
-    val deltaReservesX = depositX
-    val deltaReservesY = depositY
-
-    val supplyLpIn = initialLp - lpBalanceIn
-
-    val sharesUnlockedX = BigInt(deltaReservesX) * supplyLpIn / reservesXIn
-    val sharesUnlockedY = BigInt(deltaReservesY) * supplyLpIn / reservesYIn
-    val sharesUnlocked = sharesUnlockedX.min(sharesUnlockedY) - 1
-
-    val lpBalanceOut = lpBalanceIn - sharesUnlocked.toLong
-    assert(lpBalanceOut > lpBalanceIn)
-    assert(reservesXOut == reservesXIn)
-    assert(reservesYOut == reservesYIn)
+    val lpBalanceOut = lpBalanceIn + lpRedeemed
 
     ergoClient.execute { implicit ctx: BlockchainContext =>
 
@@ -450,7 +392,7 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .newTxBuilder()
           .outBoxBuilder
           .value(fakeNanoErgs)
-          .tokens(new ErgoToken(dexyUSD, depositY))
+          .tokens(new ErgoToken(lpToken, lpRedeemed))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
@@ -496,10 +438,10 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
         changeAddress,
         dummyNanoErgs,
         registers = Array(),
-        tokens = Array((lpToken, sharesUnlocked.toLong))
+        tokens = Array((dexyUSD, withdrawY))
       )
 
-      noException shouldBe thrownBy {
+      an[Exception] shouldBe thrownBy {
         TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
           Array(validLpOutBox, dummyOutputBox),
           fee = 1000000L,
@@ -511,4 +453,90 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
       }
     }
   }
+
+  property("Redeem Lp should not work if 0 Dexy and more Ergs taken") {
+    val oracleRateXy = 10000L
+    val lpBalanceIn = 100000000L
+
+    val reservesXIn = 1000000000000L
+    val reservesYIn = 100000000L
+
+    val lpRedeemed = 49950L
+    val withdrawX = 500000L + 1 // 1 more than needed
+    val withdrawY = 0 // 0 Dexy
+
+    val reservesXOut = reservesXIn - withdrawX
+    val reservesYOut = reservesYIn - withdrawY
+
+    val lpBalanceOut = lpBalanceIn + lpRedeemed
+
+    ergoClient.execute { implicit ctx: BlockchainContext =>
+
+      val fundingBox =
+        ctx // for funding transactions
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(fakeNanoErgs)
+          .tokens(new ErgoToken(lpToken, lpRedeemed))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId1, fakeIndex)
+
+      val dummyBox = // ToDo: see if this can be removed
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(dummyNanoErgs)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId5, fakeIndex)
+
+      val oracleBox =
+        ctx // for funding transactions
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(oracleNFT, 1))
+          .registers(KioskLong(oracleRateXy).getErgoValue)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId2, fakeIndex)
+
+      val lpBox =
+        ctx // for funding transactions
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(reservesXIn)
+          .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalanceIn), new ErgoToken(dexyUSD, reservesYIn))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
+      val validLpOutBox = KioskBox(
+        lpAddress,
+        reservesXOut,
+        registers = Array(),
+        tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, reservesYOut))
+      )
+
+      val dummyOutputBox = KioskBox(
+        changeAddress,
+        dummyNanoErgs,
+        registers = Array(),
+        tokens = Array((dexyUSD, withdrawY))
+      )
+
+      an[Exception] shouldBe thrownBy {
+        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
+          Array(validLpOutBox, dummyOutputBox),
+          fee = 1000000L,
+          changeAddress,
+          Array[String](),
+          Array[DhtData](),
+          false
+        )
+      }
+    }
+  }
+
 }
