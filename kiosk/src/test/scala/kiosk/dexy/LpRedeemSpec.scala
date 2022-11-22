@@ -539,4 +539,89 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
     }
   }
 
+  property("Redeem Lp should not work if oracle rate is below threshold") {
+    val oracleRateXy = 10000L * 98 / 100 // should not work if its <= 98 % of the lp Rate
+    val lpBalanceIn = 100000000L
+
+    val reservesXIn = 1000000000000L
+    val reservesYIn = 100000000L
+
+    val lpRedeemed = 49950L
+    val withdrawX = 500000L
+    val withdrawY = 50L
+
+    val reservesXOut = reservesXIn - withdrawX
+    val reservesYOut = reservesYIn - withdrawY
+
+    val lpBalanceOut = lpBalanceIn + lpRedeemed
+
+    ergoClient.execute { implicit ctx: BlockchainContext =>
+
+      val fundingBox =
+        ctx // for funding transactions
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(fakeNanoErgs)
+          .tokens(new ErgoToken(lpToken, lpRedeemed))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId1, fakeIndex)
+
+      val dummyBox = // ToDo: see if this can be removed
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(dummyNanoErgs)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId5, fakeIndex)
+
+      val oracleBox =
+        ctx // for funding transactions
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(oracleNFT, 1))
+          .registers(KioskLong(oracleRateXy).getErgoValue)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId2, fakeIndex)
+
+      val lpBox =
+        ctx // for funding transactions
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(reservesXIn)
+          .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalanceIn), new ErgoToken(dexyUSD, reservesYIn))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
+      val validLpOutBox = KioskBox(
+        lpAddress,
+        reservesXOut,
+        registers = Array(),
+        tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, reservesYOut))
+      )
+
+      val dummyOutputBox = KioskBox(
+        changeAddress,
+        dummyNanoErgs,
+        registers = Array(),
+        tokens = Array((dexyUSD, withdrawY))
+      )
+
+      an[Exception] shouldBe thrownBy {
+        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
+          Array(validLpOutBox, dummyOutputBox),
+          fee = 1000000L,
+          changeAddress,
+          Array[String](),
+          Array[DhtData](),
+          false
+        )
+      }
+    }
+  }
+
 }
