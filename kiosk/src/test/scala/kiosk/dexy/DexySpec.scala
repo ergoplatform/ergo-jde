@@ -609,8 +609,9 @@ object DexySpec {
        |            if (deltaReservesX > 0 && deltaReservesY > 0) validMintLp
        |            else validRedemption
        |
-       |    val dexyAction = validIntervention || // intervention
-       |                     validExtraction // extract to future or release in future
+       |    val dexyAction = (validIntervention ||
+       |                      validExtraction) && // extract to future or release in future
+       |                      deltaSupplyLp == 0 // ensure Lp tokens are not extracted during dexyAction
        |    sigmaProp(
        |        validSupplyLpOut          &&
        |        validSuccessorScript      &&
@@ -807,62 +808,61 @@ object DexySpec {
        |  
        |  val successor = OUTPUTS(selfOutIndex) 
        |  
-       |  val tokenYIn    = lpBoxIn.tokens(2)
-       |  val tokenYOut    = lpBoxOut.tokens(2)
+       |  val lpTokenYIn    = lpBoxIn.tokens(2)
+       |  val lpTokenYOut    = lpBoxOut.tokens(2)
        |  
-       |  val reservesXIn = lpBoxIn.value
-       |  val reservesYIn = tokenYIn._2
+       |  val lpReservesXIn = lpBoxIn.value
+       |  val lpReservesYIn = lpTokenYIn._2
        |  
-       |  val reservesXOut = lpBoxOut.value
-       |  val reservesYOut = tokenYOut._2
+       |  val lpReservesXOut = lpBoxOut.value
+       |  val lpReservesYOut = lpTokenYOut._2
        |  
-       |  val lpRateXYIn  = reservesXIn / reservesYIn  // we can assume that reservesYIn > 0 (since at least one token must exist)
-       |  val lpRateXYOut  = reservesXOut / reservesYOut  // we can assume that reservesYOut > 0 (since at least one token must exist)
+       |  val lpRateXyIn  = lpReservesXIn / lpReservesYIn  // we can assume that reservesYIn > 0 (since at least one token must exist)
+       |  val lpRateXyOut  = lpReservesXOut / lpReservesYOut  // we can assume that reservesYOut > 0 (since at least one token must exist)
        |  
-       |  val oracleRateXY = oracleBox.R4[Long].get
+       |  val oracleRateXy = oracleBox.R4[Long].get
        |   
-       |  val validThreshold = lpRateXYIn * 100 < thresholdPercent * oracleRateXY
-       |   
+       |  val validThreshold = lpRateXyIn * 100 < thresholdPercent * oracleRateXy
+       |
+       |  // check data inputs are correct
        |  val validOracleBox = oracleBox.tokens(0)._1 == oracleNFT 
        |  val validTrackingBox = trackingBox.tokens(0)._1 == tracking98NFT
-       |   
-       |  val validLpBox = lpBoxIn.tokens(0)._1 == lpNFT
-       |  
+       |
+       |  // check that inputs are correct
+       |  val validLpBoxIn = lpBoxIn.tokens(0)._1 == lpNFT
+       |  val validBankBoxIn = bankBoxIn.tokens(0)._1 == bankNFT
+       |
+       |  // check that self output is correct
        |  val validSuccessor = successor.propositionBytes == SELF.propositionBytes  &&
        |                       successor.tokens == SELF.tokens                      &&
        |                       successor.value == SELF.value                        &&
        |                       successor.creationInfo._1 >= HEIGHT - buffer
-       |  
-       |  val validBankBoxIn = bankBoxIn.tokens(0)._1 == bankNFT 
-       |  
-       |  val validBankBoxOut = bankBoxOut.tokens(0) == bankBoxIn.tokens(0)        &&
-       |                        bankBoxOut.tokens(1)._1 == bankBoxIn.tokens(1)._1
-       |  
+       |
+       |
        |  val validGap = lastIntervention < HEIGHT - T
        |  
        |  val deltaBankTokens =  bankBoxOut.tokens(1)._2 - bankBoxIn.tokens(1)._2
        |  val deltaBankErgs = bankBoxIn.value - bankBoxOut.value
-       |  val deltaLpX = reservesXOut - reservesXIn
-       |  val deltaLpY = reservesYIn - reservesYOut
+       |  val deltaLpX = lpReservesXOut - lpReservesXIn
+       |  val deltaLpY = lpReservesYIn - lpReservesYOut
        |  
        |  val trackingHeight = trackingBox.R7[Int].get
        |  
-       |  val validLpIn = trackingHeight < HEIGHT - T_int // at least T_int blocks have passed since the tracking started
+       |  val validTracking = trackingHeight < HEIGHT - T_int // at least T_int blocks have passed since the tracking started
        |                  
-       |  val lpRateXYOutTimes100 = lpRateXYOut * 100
+       |  val lpRateXyOutTimes100 = lpRateXyOut * 100
        |  
-       |  val validSwap = lpRateXYOutTimes100 >= oracleRateXY * 105   && // new rate must be >= 1.05 times oracle rate
-       |                  lpRateXYOutTimes100 <= oracleRateXY * 110   && // new rate must be <= 1.1 times oracle rate
+       |  val validSwap = lpRateXyOutTimes100 >= oracleRateXy * 105   && // new rate must be >= 1.05 times oracle rate
+       |                  lpRateXyOutTimes100 <= oracleRateXy * 110   && // new rate must be <= 1.1 times oracle rate
        |                  deltaBankErgs <= deltaLpX                   && // ergs reduced in bank box must be <= ergs gained in LP 
        |                  deltaBankTokens >= deltaLpY                 && // tokens gained in bank box must be >= tokens reduced in LP 
        |                  validBankBoxIn                              &&
-       |                  validBankBoxOut                             &&
+       |                  validLpBoxIn                                &&
        |                  validSuccessor                              &&
-       |                  validLpBox                                  &&
        |                  validOracleBox                              &&
        |                  validTrackingBox                            &&
        |                  validThreshold                              &&
-       |                  validLpIn                                   && 
+       |                  validTracking                               &&
        |                  validGap
        |   
        |  sigmaProp(validSwap)

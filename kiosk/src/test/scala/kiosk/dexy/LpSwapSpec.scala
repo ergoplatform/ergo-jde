@@ -50,7 +50,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
     ergoClient.execute { implicit ctx: BlockchainContext =>
 
       val fundingBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(fakeNanoErgs)
@@ -68,7 +68,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .convertToInputWith(fakeTxId5, fakeIndex)
 
       val oracleBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
@@ -79,7 +79,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .convertToInputWith(fakeTxId2, fakeIndex)
 
       val lpBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(reservesXIn)
@@ -139,7 +139,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
     ergoClient.execute { implicit ctx: BlockchainContext =>
 
       val fundingBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(fakeNanoErgs)
@@ -157,7 +157,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .convertToInputWith(fakeTxId5, fakeIndex)
 
       val oracleBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
@@ -168,7 +168,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .convertToInputWith(fakeTxId2, fakeIndex)
 
       val lpBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(reservesXIn)
@@ -228,7 +228,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
     ergoClient.execute { implicit ctx: BlockchainContext =>
 
       val fundingBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(fakeNanoErgs)
@@ -246,7 +246,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .convertToInputWith(fakeTxId5, fakeIndex)
 
       val oracleBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
@@ -257,7 +257,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .convertToInputWith(fakeTxId2, fakeIndex)
 
       val lpBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(reservesXIn)
@@ -315,7 +315,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
     ergoClient.execute { implicit ctx: BlockchainContext =>
 
       val fundingBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(fakeNanoErgs)
@@ -334,7 +334,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .convertToInputWith(fakeTxId5, fakeIndex)
 
       val oracleBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
@@ -345,7 +345,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .convertToInputWith(fakeTxId2, fakeIndex)
 
       val lpBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(reservesXIn)
@@ -404,7 +404,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
     ergoClient.execute { implicit ctx: BlockchainContext =>
 
       val fundingBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(fakeNanoErgs)
@@ -423,7 +423,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .convertToInputWith(fakeTxId5, fakeIndex)
 
       val oracleBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
@@ -434,7 +434,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .convertToInputWith(fakeTxId2, fakeIndex)
 
       val lpBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(reservesXIn)
@@ -482,7 +482,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
     ergoClient.execute { implicit ctx: BlockchainContext =>
 
       val fundingBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(fakeNanoErgs)
@@ -500,7 +500,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .convertToInputWith(fakeTxId5, fakeIndex)
 
       val oracleBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
@@ -511,7 +511,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .convertToInputWith(fakeTxId2, fakeIndex)
 
       val lpBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(reservesXIn)

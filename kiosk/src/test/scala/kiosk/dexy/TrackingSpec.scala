@@ -46,7 +46,7 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
       val trackingHeightIn = Int.MaxValue
 
       val fundingBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(fakeNanoErgs)
@@ -129,7 +129,7 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
       val trackingHeightIn = 1234 // non-INF value, should cause script to fail
 
       val fundingBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(fakeNanoErgs)
@@ -218,7 +218,7 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
       val trackingHeightIn = Int.MaxValue
 
       val fundingBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(fakeNanoErgs)
@@ -307,7 +307,7 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
       val trackingHeightIn = 1234 // some non-INF value, implying that tracker is in triggered state
 
       val fundingBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(fakeNanoErgs)
@@ -395,7 +395,7 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
       val trackingHeightIn = 1234 // some non-INF value, implying that tracker is in triggered state
 
       val fundingBox =
-        ctx // for funding transactions
+        ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(fakeNanoErgs)
