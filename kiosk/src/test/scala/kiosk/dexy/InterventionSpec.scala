@@ -52,6 +52,10 @@ class InterventionSpec  extends PropSpec with Matchers with ScalaCheckDrivenProp
 
     val lpRateXyOut = lpReservesXOut / lpReservesYOut
 
+    val a = BigInt(lpReservesXOut) * 100
+    val b = BigInt(oracleRateXy) * lpReservesYOut
+    assert(a >= b * 105)
+    assert(a <= b * 110)
     assert(lpRateXyOut * 100 >= oracleRateXy * 101)
 
     ergoClient.execute { implicit ctx: BlockchainContext =>
@@ -150,7 +154,6 @@ class InterventionSpec  extends PropSpec with Matchers with ScalaCheckDrivenProp
         tokens = Array((interventionNFT, 1))
       )
 
-      // all ok, intervention should work
       noException shouldBe thrownBy {
         TxUtil.createTx(
           Array(lpBox, bankBox, interventionBox, fundingBox),
@@ -163,6 +166,1018 @@ class InterventionSpec  extends PropSpec with Matchers with ScalaCheckDrivenProp
           false
         )
       }
+    }
+  }
+
+  property("Intervention should work if more tokens deposited to bank than taken from Lp") {
+    val lpBalanceIn = 100000000L
+
+    val thresholdPercent = 98
+
+    val bankReservesXIn = 1000000000000000L // Nano Ergs
+    val bankReservesYIn = 10000000000L // Dexy
+
+    val lpReservesXIn = 100000000000000L
+    val lpReservesYIn = 10000000000L
+
+    val lpRateXyIn = lpReservesXIn / lpReservesYIn
+    val oracleRateXy = lpRateXyIn * 100 / thresholdPercent + 1
+
+    val depositX = 5000000000000L
+    val withdrawY = (BigInt(depositX) * lpReservesYIn / lpReservesXIn).toLong
+
+    val lpReservesXOut = lpReservesXIn + depositX
+    val lpReservesYOut = lpReservesYIn - withdrawY
+
+    val bankReservesXOut = bankReservesXIn - depositX // Nano Ergs
+    val bankReservesYOut = bankReservesYIn + withdrawY // Dexy
+
+    val lpBalanceOut = lpBalanceIn
+
+    val lpRateXyOut = lpReservesXOut / lpReservesYOut
+
+    val a = BigInt(lpReservesXOut) * 100
+    val b = BigInt(oracleRateXy) * lpReservesYOut
+    assert(a >= b * 105)
+    assert(a <= b * 110)
+    assert(lpRateXyOut * 100 >= oracleRateXy * 101)
+
+    ergoClient.execute { implicit ctx: BlockchainContext =>
+
+      val T_int = 20
+      val T = 100
+      val trackingHeightIn = ctx.getHeight - T_int - 1
+
+      val lastInterventionHeight = ctx.getHeight - T_int - T - 1
+
+      val fundingBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(fakeNanoErgs)
+          .tokens(new ErgoToken(dexyUSD, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId1, fakeIndex)
+
+      val oracleBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(oracleNFT, 1))
+          .registers(KioskLong(oracleRateXy).getErgoValue)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId2, fakeIndex)
+
+      val tracking98Box =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(tracking98NFT, 1))
+          .registers(
+            KioskInt(49).getErgoValue, // numerator for 98%
+            KioskInt(50).getErgoValue, // denominator for 98%
+            KioskBoolean(true).getErgoValue, // isBelow
+            KioskInt(trackingHeightIn).getErgoValue
+          )
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), DexySpec.trackingScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
+      val lpBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(lpReservesXIn)
+          .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalanceIn), new ErgoToken(dexyUSD, lpReservesYIn))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
+      val bankBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(bankReservesXIn)
+          .tokens(new ErgoToken(bankNFT, 1), new ErgoToken(dexyUSD, bankReservesYIn))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), bankScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
+      val interventionBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(interventionNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), interventionScript))
+          .creationHeight(lastInterventionHeight)
+          .build()
+          .convertToInputWith(fakeTxId5, fakeIndex)
+
+      val validLpOutBox = KioskBox(
+        lpAddress,
+        lpReservesXOut,
+        registers = Array(),
+        tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, lpReservesYOut))
+      )
+
+      val validBankOutBox = KioskBox(
+        bankAddress,
+        bankReservesXOut,
+        registers = Array(),
+        tokens = Array((bankNFT, 1), (
+          dexyUSD,
+          bankReservesYOut + 1 // one extra deposited
+        ))
+      )
+
+      val validInterventionOutBox = KioskBox(
+        interventionAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((interventionNFT, 1))
+      )
+
+      noException shouldBe thrownBy {
+        TxUtil.createTx(
+          Array(lpBox, bankBox, interventionBox, fundingBox),
+          Array(oracleBox, tracking98Box),
+          Array(validLpOutBox, validBankOutBox, validInterventionOutBox),
+          fee = 1000000L,
+          changeAddress,
+          Array[String](),
+          Array[DhtData](),
+          false
+        )
+      }
+    }
+  }
+
+  property("Intervention should work if more Ergs deposited to Lp than taken from Bank") {
+    val lpBalanceIn = 100000000L
+
+    val thresholdPercent = 98
+
+    val bankReservesXIn = 1000000000000000L // Nano Ergs
+    val bankReservesYIn = 10000000000L // Dexy
+
+    val lpReservesXIn = 100000000000000L
+    val lpReservesYIn = 10000000000L
+
+    val lpRateXyIn = lpReservesXIn / lpReservesYIn
+    val oracleRateXy = lpRateXyIn * 100 / thresholdPercent + 1
+
+    val depositX = 5000000000000L
+    val withdrawY = (BigInt(depositX) * lpReservesYIn / lpReservesXIn).toLong
+
+    val lpReservesXOut = lpReservesXIn + depositX
+    val lpReservesYOut = lpReservesYIn - withdrawY
+
+    val bankReservesXOut = bankReservesXIn - depositX // Nano Ergs
+    val bankReservesYOut = bankReservesYIn + withdrawY // Dexy
+
+    val lpBalanceOut = lpBalanceIn
+
+    val lpRateXyOut = lpReservesXOut / lpReservesYOut
+
+    val a = BigInt(lpReservesXOut) * 100
+    val b = BigInt(oracleRateXy) * lpReservesYOut
+    assert(a >= b * 105)
+    assert(a <= b * 110)
+    assert(lpRateXyOut * 100 >= oracleRateXy * 101)
+
+    ergoClient.execute { implicit ctx: BlockchainContext =>
+
+      val T_int = 20
+      val T = 100
+      val trackingHeightIn = ctx.getHeight - T_int - 1
+
+      val lastInterventionHeight = ctx.getHeight - T_int - T - 1
+
+      val fundingBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(fakeNanoErgs)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId1, fakeIndex)
+
+      val oracleBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(oracleNFT, 1))
+          .registers(KioskLong(oracleRateXy).getErgoValue)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId2, fakeIndex)
+
+      val tracking98Box =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(tracking98NFT, 1))
+          .registers(
+            KioskInt(49).getErgoValue, // numerator for 98%
+            KioskInt(50).getErgoValue, // denominator for 98%
+            KioskBoolean(true).getErgoValue, // isBelow
+            KioskInt(trackingHeightIn).getErgoValue
+          )
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), DexySpec.trackingScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
+      val lpBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(lpReservesXIn)
+          .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalanceIn), new ErgoToken(dexyUSD, lpReservesYIn))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
+      val bankBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(bankReservesXIn)
+          .tokens(new ErgoToken(bankNFT, 1), new ErgoToken(dexyUSD, bankReservesYIn))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), bankScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
+      val interventionBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(interventionNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), interventionScript))
+          .creationHeight(lastInterventionHeight)
+          .build()
+          .convertToInputWith(fakeTxId5, fakeIndex)
+
+      val validLpOutBox = KioskBox(
+        lpAddress,
+        lpReservesXOut + 1, // one extra deposited
+        registers = Array(),
+        tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, lpReservesYOut))
+      )
+
+      val validBankOutBox = KioskBox(
+        bankAddress,
+        bankReservesXOut,
+        registers = Array(),
+        tokens = Array((bankNFT, 1), (dexyUSD, bankReservesYOut))
+      )
+
+      val validInterventionOutBox = KioskBox(
+        interventionAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((interventionNFT, 1))
+      )
+
+      noException shouldBe thrownBy {
+        TxUtil.createTx(
+          Array(lpBox, bankBox, interventionBox, fundingBox),
+          Array(oracleBox, tracking98Box),
+          Array(validLpOutBox, validBankOutBox, validInterventionOutBox),
+          fee = 1000000L,
+          changeAddress,
+          Array[String](),
+          Array[DhtData](),
+          false
+        )
+      }
+    }
+  }
+
+  property("Intervention should not work if less Ergs deposited to Lp than taken from Bank") {
+    val lpBalanceIn = 100000000L
+
+    val thresholdPercent = 98
+
+    val bankReservesXIn = 1000000000000000L // Nano Ergs
+    val bankReservesYIn = 10000000000L // Dexy
+
+    val lpReservesXIn = 100000000000000L
+    val lpReservesYIn = 10000000000L
+
+    val lpRateXyIn = lpReservesXIn / lpReservesYIn
+    val oracleRateXy = lpRateXyIn * 100 / thresholdPercent + 1
+
+    val depositX = 5000000000000L
+    val withdrawY = (BigInt(depositX) * lpReservesYIn / lpReservesXIn).toLong
+
+    val lpReservesXOut = lpReservesXIn + depositX
+    val lpReservesYOut = lpReservesYIn - withdrawY
+
+    val bankReservesXOut = bankReservesXIn - depositX // Nano Ergs
+    val bankReservesYOut = bankReservesYIn + withdrawY // Dexy
+
+    val lpBalanceOut = lpBalanceIn
+
+    val lpRateXyOut = lpReservesXOut / lpReservesYOut
+
+    val a = BigInt(lpReservesXOut) * 100
+    val b = BigInt(oracleRateXy) * lpReservesYOut
+    assert(a >= b * 105)
+    assert(a <= b * 110)
+    assert(lpRateXyOut * 100 >= oracleRateXy * 101)
+
+    ergoClient.execute { implicit ctx: BlockchainContext =>
+
+      val T_int = 20
+      val T = 100
+      val trackingHeightIn = ctx.getHeight - T_int - 1
+
+      val lastInterventionHeight = ctx.getHeight - T_int - T - 1
+
+      val fundingBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(fakeNanoErgs)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId1, fakeIndex)
+
+      val oracleBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(oracleNFT, 1))
+          .registers(KioskLong(oracleRateXy).getErgoValue)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId2, fakeIndex)
+
+      val tracking98Box =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(tracking98NFT, 1))
+          .registers(
+            KioskInt(49).getErgoValue, // numerator for 98%
+            KioskInt(50).getErgoValue, // denominator for 98%
+            KioskBoolean(true).getErgoValue, // isBelow
+            KioskInt(trackingHeightIn).getErgoValue
+          )
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), DexySpec.trackingScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
+      val lpBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(lpReservesXIn)
+          .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalanceIn), new ErgoToken(dexyUSD, lpReservesYIn))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
+      val bankBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(bankReservesXIn)
+          .tokens(new ErgoToken(bankNFT, 1), new ErgoToken(dexyUSD, bankReservesYIn))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), bankScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
+      val interventionBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(interventionNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), interventionScript))
+          .creationHeight(lastInterventionHeight)
+          .build()
+          .convertToInputWith(fakeTxId5, fakeIndex)
+
+      val validLpOutBox = KioskBox(
+        lpAddress,
+        lpReservesXOut,
+        registers = Array(),
+        tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, lpReservesYOut))
+      )
+
+      val validBankOutBox = KioskBox(
+        bankAddress,
+        bankReservesXOut - 1,  // one extra erg taken from bank
+        registers = Array(),
+        tokens = Array((bankNFT, 1), (dexyUSD, bankReservesYOut))
+      )
+
+      val validInterventionOutBox = KioskBox(
+        interventionAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((interventionNFT, 1))
+      )
+
+      the[Exception] thrownBy {
+        TxUtil.createTx(
+          Array(lpBox, bankBox, interventionBox, fundingBox),
+          Array(oracleBox, tracking98Box),
+          Array(validLpOutBox, validBankOutBox, validInterventionOutBox),
+          fee = 1000000L,
+          changeAddress,
+          Array[String](),
+          Array[DhtData](),
+          false
+        )
+      } should have message "Script reduced to false"
+    }
+  }
+
+  property("Intervention should not work if less Tokens deposited to Bank than taken from Lp") {
+    val lpBalanceIn = 100000000L
+
+    val thresholdPercent = 98
+
+    val bankReservesXIn = 1000000000000000L // Nano Ergs
+    val bankReservesYIn = 10000000000L // Dexy
+
+    val lpReservesXIn = 100000000000000L
+    val lpReservesYIn = 10000000000L
+
+    val lpRateXyIn = lpReservesXIn / lpReservesYIn
+    val oracleRateXy = lpRateXyIn * 100 / thresholdPercent + 1
+
+    val depositX = 5000000000000L
+    val withdrawY = (BigInt(depositX) * lpReservesYIn / lpReservesXIn).toLong
+
+    val lpReservesXOut = lpReservesXIn + depositX
+    val lpReservesYOut = lpReservesYIn - withdrawY
+
+    val bankReservesXOut = bankReservesXIn - depositX // Nano Ergs
+    val bankReservesYOut = bankReservesYIn + withdrawY // Dexy
+
+    val lpBalanceOut = lpBalanceIn
+
+    val lpRateXyOut = lpReservesXOut / lpReservesYOut
+
+    val a = BigInt(lpReservesXOut) * 100
+    val b = BigInt(oracleRateXy) * lpReservesYOut
+    assert(a >= b * 105)
+    assert(a <= b * 110)
+    assert(lpRateXyOut * 100 >= oracleRateXy * 101)
+
+    ergoClient.execute { implicit ctx: BlockchainContext =>
+
+      val T_int = 20
+      val T = 100
+      val trackingHeightIn = ctx.getHeight - T_int - 1
+
+      val lastInterventionHeight = ctx.getHeight - T_int - T - 1
+
+      val fundingBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(fakeNanoErgs)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId1, fakeIndex)
+
+      val oracleBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(oracleNFT, 1))
+          .registers(KioskLong(oracleRateXy).getErgoValue)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId2, fakeIndex)
+
+      val tracking98Box =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(tracking98NFT, 1))
+          .registers(
+            KioskInt(49).getErgoValue, // numerator for 98%
+            KioskInt(50).getErgoValue, // denominator for 98%
+            KioskBoolean(true).getErgoValue, // isBelow
+            KioskInt(trackingHeightIn).getErgoValue
+          )
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), DexySpec.trackingScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
+      val lpBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(lpReservesXIn)
+          .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalanceIn), new ErgoToken(dexyUSD, lpReservesYIn))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
+      val bankBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(bankReservesXIn)
+          .tokens(new ErgoToken(bankNFT, 1), new ErgoToken(dexyUSD, bankReservesYIn))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), bankScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
+      val interventionBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(interventionNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), interventionScript))
+          .creationHeight(lastInterventionHeight)
+          .build()
+          .convertToInputWith(fakeTxId5, fakeIndex)
+
+      val validLpOutBox = KioskBox(
+        lpAddress,
+        lpReservesXOut,
+        registers = Array(),
+        tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, lpReservesYOut))
+      )
+
+      val validBankOutBox = KioskBox(
+        bankAddress,
+        bankReservesXOut,
+        registers = Array(),
+        tokens = Array((bankNFT, 1), (
+          dexyUSD,
+          bankReservesYOut - 1  // one less Dexy deposited to bank
+        ))
+      )
+
+      val validInterventionOutBox = KioskBox(
+        interventionAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((interventionNFT, 1))
+      )
+
+      the[Exception] thrownBy {
+        TxUtil.createTx(
+          Array(lpBox, bankBox, interventionBox, fundingBox),
+          Array(oracleBox, tracking98Box),
+          Array(validLpOutBox, validBankOutBox, validInterventionOutBox),
+          fee = 1000000L,
+          changeAddress,
+          Array[String](),
+          Array[DhtData](),
+          false
+        )
+      } should have message "Script reduced to false"
+    }
+  }
+
+  property("Intervention should fail if not enough ergs deposited to Lp box") {
+    val lpBalanceIn = 100000000L
+
+    val thresholdPercent = 98
+
+    val bankReservesXIn = 1000000000000000L // Nano Ergs
+    val bankReservesYIn = 10000000000L // Dexy
+
+    val lpReservesXIn = 100000000000000L
+    val lpReservesYIn = 10000000000L
+
+    val lpRateXyIn = lpReservesXIn / lpReservesYIn
+    val oracleRateXy = lpRateXyIn * 100 / thresholdPercent + 1
+
+    val depositX = 3000000000000L // less ergs deposited
+    val withdrawY = (BigInt(depositX) * lpReservesYIn / lpReservesXIn).toLong
+
+    val lpReservesXOut = lpReservesXIn + depositX
+    val lpReservesYOut = lpReservesYIn - withdrawY
+
+    val bankReservesXOut = bankReservesXIn - depositX // Nano Ergs
+    val bankReservesYOut = bankReservesYIn + withdrawY // Dexy
+
+    val lpBalanceOut = lpBalanceIn
+
+    val lpRateXyOut = lpReservesXOut / lpReservesYOut
+
+    val a = BigInt(lpReservesXOut) * 100
+    val b = BigInt(oracleRateXy) * lpReservesYOut
+
+    assert(a < b * 105) // this condition should be >= in happy flow
+    assert(a <= b * 110)
+    assert(lpRateXyOut * 100 >= oracleRateXy * 101)
+
+    ergoClient.execute { implicit ctx: BlockchainContext =>
+
+      val T_int = 20
+      val T = 100
+      val trackingHeightIn = ctx.getHeight - T_int - 1
+
+      val lastInterventionHeight = ctx.getHeight - T_int - T - 1
+
+      val fundingBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(fakeNanoErgs)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId1, fakeIndex)
+
+      val oracleBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(oracleNFT, 1))
+          .registers(KioskLong(oracleRateXy).getErgoValue)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId2, fakeIndex)
+
+      val tracking98Box =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(tracking98NFT, 1))
+          .registers(
+            KioskInt(49).getErgoValue, // numerator for 98%
+            KioskInt(50).getErgoValue, // denominator for 98%
+            KioskBoolean(true).getErgoValue, // isBelow
+            KioskInt(trackingHeightIn).getErgoValue
+          )
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), DexySpec.trackingScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
+      val lpBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(lpReservesXIn)
+          .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalanceIn), new ErgoToken(dexyUSD, lpReservesYIn))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
+      val bankBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(bankReservesXIn)
+          .tokens(new ErgoToken(bankNFT, 1), new ErgoToken(dexyUSD, bankReservesYIn))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), bankScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
+      val interventionBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(interventionNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), interventionScript))
+          .creationHeight(lastInterventionHeight)
+          .build()
+          .convertToInputWith(fakeTxId5, fakeIndex)
+
+      val validLpOutBox = KioskBox(
+        lpAddress,
+        lpReservesXOut,
+        registers = Array(),
+        tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, lpReservesYOut))
+      )
+
+      val validBankOutBox = KioskBox(
+        bankAddress,
+        bankReservesXOut,
+        registers = Array(),
+        tokens = Array((bankNFT, 1), (dexyUSD, bankReservesYOut))
+      )
+
+      val validInterventionOutBox = KioskBox(
+        interventionAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((interventionNFT, 1))
+      )
+
+      the[Exception] thrownBy {
+        TxUtil.createTx(
+          Array(lpBox, bankBox, interventionBox, fundingBox),
+          Array(oracleBox, tracking98Box),
+          Array(validLpOutBox, validBankOutBox, validInterventionOutBox),
+          fee = 1000000L,
+          changeAddress,
+          Array[String](),
+          Array[DhtData](),
+          false
+        )
+      } should have message "Script reduced to false"
+    }
+  }
+
+  property("Intervention should fail if more ergs deposited to Lp box") {
+    val lpBalanceIn = 100000000L
+
+    val thresholdPercent = 98
+
+    val bankReservesXIn = 1000000000000000L // Nano Ergs
+    val bankReservesYIn = 10000000000L // Dexy
+
+    val lpReservesXIn = 100000000000000L
+    val lpReservesYIn = 10000000000L
+
+    val lpRateXyIn = lpReservesXIn / lpReservesYIn
+    val oracleRateXy = lpRateXyIn * 100 / thresholdPercent + 1
+
+    val depositX = 6000000000000L // more ergs deposited
+    val withdrawY = (BigInt(depositX) * lpReservesYIn / lpReservesXIn).toLong
+
+    val lpReservesXOut = lpReservesXIn + depositX
+    val lpReservesYOut = lpReservesYIn - withdrawY
+
+    val bankReservesXOut = bankReservesXIn - depositX // Nano Ergs
+    val bankReservesYOut = bankReservesYIn + withdrawY // Dexy
+
+    val lpBalanceOut = lpBalanceIn
+
+    val lpRateXyOut = lpReservesXOut / lpReservesYOut
+
+    val a = BigInt(lpReservesXOut) * 100
+    val b = BigInt(oracleRateXy) * lpReservesYOut
+    assert(a >= b * 105)
+    assert(a > b * 110)  // this condition should be <= in happy flow
+    assert(lpRateXyOut * 100 >= oracleRateXy * 101)
+
+    ergoClient.execute { implicit ctx: BlockchainContext =>
+
+      val T_int = 20
+      val T = 100
+      val trackingHeightIn = ctx.getHeight - T_int - 1
+
+      val lastInterventionHeight = ctx.getHeight - T_int - T - 1
+
+      val fundingBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(fakeNanoErgs)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId1, fakeIndex)
+
+      val oracleBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(oracleNFT, 1))
+          .registers(KioskLong(oracleRateXy).getErgoValue)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId2, fakeIndex)
+
+      val tracking98Box =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(tracking98NFT, 1))
+          .registers(
+            KioskInt(49).getErgoValue, // numerator for 98%
+            KioskInt(50).getErgoValue, // denominator for 98%
+            KioskBoolean(true).getErgoValue, // isBelow
+            KioskInt(trackingHeightIn).getErgoValue
+          )
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), DexySpec.trackingScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
+      val lpBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(lpReservesXIn)
+          .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalanceIn), new ErgoToken(dexyUSD, lpReservesYIn))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
+      val bankBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(bankReservesXIn)
+          .tokens(new ErgoToken(bankNFT, 1), new ErgoToken(dexyUSD, bankReservesYIn))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), bankScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
+      val interventionBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(interventionNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), interventionScript))
+          .creationHeight(lastInterventionHeight)
+          .build()
+          .convertToInputWith(fakeTxId5, fakeIndex)
+
+      val validLpOutBox = KioskBox(
+        lpAddress,
+        lpReservesXOut,
+        registers = Array(),
+        tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, lpReservesYOut))
+      )
+
+      val validBankOutBox = KioskBox(
+        bankAddress,
+        bankReservesXOut,
+        registers = Array(),
+        tokens = Array((bankNFT, 1), (dexyUSD, bankReservesYOut))
+      )
+
+      val validInterventionOutBox = KioskBox(
+        interventionAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((interventionNFT, 1))
+      )
+
+      the[Exception] thrownBy {
+        TxUtil.createTx(
+          Array(lpBox, bankBox, interventionBox, fundingBox),
+          Array(oracleBox, tracking98Box),
+          Array(validLpOutBox, validBankOutBox, validInterventionOutBox),
+          fee = 1000000L,
+          changeAddress,
+          Array[String](),
+          Array[DhtData](),
+          false
+        )
+      } should have message "Script reduced to false"
+    }
+  }
+
+  property("Intervention should fail if oracle rate is lower than needed") {
+    val lpBalanceIn = 100000000L
+
+    val thresholdPercent = 98
+
+    val bankReservesXIn = 1000000000000000L // Nano Ergs
+    val bankReservesYIn = 10000000000L // Dexy
+
+    val lpReservesXIn = 100000000000000L
+    val lpReservesYIn = 10000000000L
+
+    val lpRateXyIn = lpReservesXIn / lpReservesYIn
+    val oracleRateXy = lpRateXyIn * 100 / thresholdPercent // oracle rate is one less than needed
+
+    val depositX = 5000000000000L
+    val withdrawY = (BigInt(depositX) * lpReservesYIn / lpReservesXIn).toLong
+
+    val lpReservesXOut = lpReservesXIn + depositX
+    val lpReservesYOut = lpReservesYIn - withdrawY
+
+    val bankReservesXOut = bankReservesXIn - depositX // Nano Ergs
+    val bankReservesYOut = bankReservesYIn + withdrawY // Dexy
+
+    val lpBalanceOut = lpBalanceIn
+
+    val lpRateXyOut = lpReservesXOut / lpReservesYOut
+
+    assert(lpRateXyOut * 100 >= oracleRateXy * 101)
+
+    ergoClient.execute { implicit ctx: BlockchainContext =>
+
+      val T_int = 20
+      val T = 100
+      val trackingHeightIn = ctx.getHeight - T_int - 1
+
+      val lastInterventionHeight = ctx.getHeight - T_int - T - 1
+
+      val fundingBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(fakeNanoErgs)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId1, fakeIndex)
+
+      val oracleBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(oracleNFT, 1))
+          .registers(KioskLong(oracleRateXy).getErgoValue)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId2, fakeIndex)
+
+      val tracking98Box =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(tracking98NFT, 1))
+          .registers(
+            KioskInt(49).getErgoValue, // numerator for 98%
+            KioskInt(50).getErgoValue, // denominator for 98%
+            KioskBoolean(true).getErgoValue, // isBelow
+            KioskInt(trackingHeightIn).getErgoValue
+          )
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), DexySpec.trackingScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
+      val lpBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(lpReservesXIn)
+          .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalanceIn), new ErgoToken(dexyUSD, lpReservesYIn))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
+      val bankBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(bankReservesXIn)
+          .tokens(new ErgoToken(bankNFT, 1), new ErgoToken(dexyUSD, bankReservesYIn))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), bankScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
+      val interventionBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(interventionNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), interventionScript))
+          .creationHeight(lastInterventionHeight)
+          .build()
+          .convertToInputWith(fakeTxId5, fakeIndex)
+
+      val validLpOutBox = KioskBox(
+        lpAddress,
+        lpReservesXOut,
+        registers = Array(),
+        tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, lpReservesYOut))
+      )
+
+      val validBankOutBox = KioskBox(
+        bankAddress,
+        bankReservesXOut,
+        registers = Array(),
+        tokens = Array((bankNFT, 1), (dexyUSD, bankReservesYOut))
+      )
+
+      val validInterventionOutBox = KioskBox(
+        interventionAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((interventionNFT, 1))
+      )
+
+      the[Exception] thrownBy {
+        TxUtil.createTx(
+          Array(lpBox, bankBox, interventionBox, fundingBox),
+          Array(oracleBox, tracking98Box),
+          Array(validLpOutBox, validBankOutBox, validInterventionOutBox),
+          fee = 1000000L,
+          changeAddress,
+          Array[String](),
+          Array[DhtData](),
+          false
+        )
+      } should have message "Script reduced to false"
     }
   }
 

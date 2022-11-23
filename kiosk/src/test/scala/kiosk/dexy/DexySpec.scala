@@ -795,7 +795,7 @@ object DexySpec {
        |  val oracleNFT = fromBase64("${Base64.encode(oracleNFT.decodeHex)}")
        |  val tracking98NFT = fromBase64("${Base64.encode(tracking98NFT.decodeHex)}")
        |  
-       |  val thresholdPercent = 98 // 98% or less value (of LP in terms of OraclePool) will trigger action (ensure less than 100) 
+       |  val thresholdPercent = 98 // 98% or less value (of LP in terms of OraclePool) will trigger action (ensure less than 100)
        |  
        |  val oracleBox = CONTEXT.dataInputs(oracleBoxIndex)
        |  val trackingBox = CONTEXT.dataInputs(trackingBoxIndex)
@@ -817,12 +817,12 @@ object DexySpec {
        |  val lpReservesXOut = lpBoxOut.value
        |  val lpReservesYOut = lpTokenYOut._2
        |  
-       |  val lpRateXyIn  = lpReservesXIn / lpReservesYIn  // we can assume that reservesYIn > 0 (since at least one token must exist)
-       |  val lpRateXyOut  = lpReservesXOut / lpReservesYOut  // we can assume that reservesYOut > 0 (since at least one token must exist)
+       |  val lpRateXyInTimesLpReservesYIn  = lpReservesXIn.toBigInt   // we can assume that reservesYIn > 0 (since at least one token must exist)
+       |  val lpRateXyOutTimesLpReservesYOut  = lpReservesXOut.toBigInt  // we can assume that reservesYOut > 0 (since at least one token must exist)
        |  
-       |  val oracleRateXy = oracleBox.R4[Long].get
+       |  val oracleRateXy = oracleBox.R4[Long].get.toBigInt
        |   
-       |  val validThreshold = lpRateXyIn * 100 < thresholdPercent * oracleRateXy
+       |  val validThreshold = lpRateXyInTimesLpReservesYIn * 100 < oracleRateXy * thresholdPercent * lpReservesYIn
        |
        |  // check data inputs are correct
        |  val validOracleBox = oracleBox.tokens(0)._1 == oracleNFT 
@@ -850,19 +850,23 @@ object DexySpec {
        |  
        |  val validTracking = trackingHeight < HEIGHT - T_int // at least T_int blocks have passed since the tracking started
        |                  
-       |  val lpRateXyOutTimes100 = lpRateXyOut * 100
-       |  
-       |  val validSwap = lpRateXyOutTimes100 >= oracleRateXy * 105   && // new rate must be >= 1.05 times oracle rate
-       |                  lpRateXyOutTimes100 <= oracleRateXy * 110   && // new rate must be <= 1.1 times oracle rate
-       |                  deltaBankErgs <= deltaLpX                   && // ergs reduced in bank box must be <= ergs gained in LP 
-       |                  deltaBankTokens >= deltaLpY                 && // tokens gained in bank box must be >= tokens reduced in LP 
-       |                  validBankBoxIn                              &&
-       |                  validLpBoxIn                                &&
-       |                  validSuccessor                              &&
-       |                  validOracleBox                              &&
-       |                  validTrackingBox                            &&
-       |                  validThreshold                              &&
-       |                  validTracking                               &&
+       |  val lpRateXyOutTimesLpReservesYOutTimes100 = lpRateXyOutTimesLpReservesYOut * 100
+       |
+       |  val validAmount = lpRateXyOutTimesLpReservesYOutTimes100 >= oracleRateXy * lpReservesYOut * 105 && // new rate must be >= 1.05 times oracle rate
+       |                    lpRateXyOutTimesLpReservesYOutTimes100 <= oracleRateXy * lpReservesYOut * 110    // new rate must be <= 1.1 times oracle rate
+       |
+       |  val validDeltas = deltaBankErgs <= deltaLpX  &&  // ergs reduced in bank box must be <= ergs gained in LP
+       |                    deltaBankTokens >= deltaLpY    // tokens gained in bank box must be >= tokens reduced in LP
+       |
+       |  val validSwap = validAmount      &&
+       |                  validDeltas      &&
+       |                  validBankBoxIn   &&
+       |                  validLpBoxIn     &&
+       |                  validSuccessor   &&
+       |                  validOracleBox   &&
+       |                  validTrackingBox &&
+       |                  validThreshold   &&
+       |                  validTracking    &&
        |                  validGap
        |   
        |  sigmaProp(validSwap)
