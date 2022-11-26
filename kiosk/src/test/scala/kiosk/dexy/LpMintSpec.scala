@@ -123,6 +123,102 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
     }
   }
 
+  property("Mint Lp should fail if Lp address changed") {
+    val oracleRateXy = 10000L
+    val lpBalanceIn = 100000000L
+
+    val reservesXIn = 1000000000000L
+    val reservesYIn = 100000000L
+
+    val depositX = 500000L
+    val depositY = 50L
+
+    val reservesXOut = reservesXIn + depositX
+    val reservesYOut = reservesYIn + depositY
+
+    val deltaReservesX = depositX
+    val deltaReservesY = depositY
+
+    val supplyLpIn = initialLp - lpBalanceIn
+
+    val sharesUnlockedX = BigInt(deltaReservesX) * supplyLpIn / reservesXIn
+    val sharesUnlockedY = BigInt(deltaReservesY) * supplyLpIn / reservesYIn
+    val sharesUnlocked = sharesUnlockedX.min(sharesUnlockedY)
+
+    assert(sharesUnlocked == 49950)
+
+    val lpBalanceOut = lpBalanceIn - sharesUnlocked.toLong
+
+    ergoClient.execute { implicit ctx: BlockchainContext =>
+
+      val fundingBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(fakeNanoErgs)
+          .tokens(new ErgoToken(dexyUSD, depositY))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId1, fakeIndex)
+
+      val dummyBox = // ToDo: see if this can be removed
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(dummyNanoErgs)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId5, fakeIndex)
+
+      val oracleBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(oracleNFT, 1))
+          .registers(KioskLong(oracleRateXy).getErgoValue)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId2, fakeIndex)
+
+      val lpBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(reservesXIn)
+          .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalanceIn), new ErgoToken(dexyUSD, reservesYIn))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
+      val validLpOutBox = KioskBox(
+        changeAddress,  // <--------------- this value is changed
+        reservesXOut,
+        registers = Array(),
+        tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, reservesYOut))
+      )
+
+      val dummyOutputBox = KioskBox(
+        changeAddress,
+        dummyNanoErgs,
+        registers = Array(),
+        tokens = Array((lpToken, sharesUnlocked.toLong))
+      )
+
+      // all ok, mint should work
+      the[Exception] thrownBy {
+        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
+          Array(validLpOutBox, dummyOutputBox),
+          fee = 1000000L,
+          changeAddress,
+          Array[String](),
+          Array[DhtData](),
+          false
+        )
+      } should have message "Script reduced to false"
+    }
+  }
+
   property("Mint Lp should not work if more LP taken") {
     val oracleRateXy = 10000L
     val lpBalanceIn = 100000000L

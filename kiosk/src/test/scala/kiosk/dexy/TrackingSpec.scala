@@ -11,6 +11,7 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
   val lpToken = "4b2d8b7beb3eaac8234d9e61792d270898a43934d6a27275e4f3a044609c9f2a" // LP tokens
   val dexyUSD = "4b2d8b7beb3eaac8234d9e61792d270898a43934d6a27275e4f3a044609c9f2b" // Dexy token
 
+  val dummyTokenId = "a9e5ce5aa0d95f5d54a7bc89c46730d9662397067250aa18a0039631c0fad80a"
   lazy val minStorageRent = 100000L
 
   val ergoClient = createMockedErgoClient(MockData(Nil, Nil))
@@ -111,6 +112,280 @@ class TrackingSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           false
         )
       }
+    }
+  }
+
+  property("Trigger 98% tracker should fail if tracking address changed") {
+    // following params will decide if its a valid tracking or not
+    val lpInCirc = 10000L
+    val oracleRateXY = 10000L
+    val lpBalance = 10000000L
+    val reservesX = 10000000000L
+    val reservesY = 1000000L
+
+    val denomIn = 49 // 49/50 = 98%
+    val numIn = 50
+
+    val lpRateXY = reservesX / reservesY
+    val x = oracleRateXY * denomIn
+    val y = numIn * lpRateXY
+
+    val toTrigger = x < y
+    assert(toTrigger)
+
+    ergoClient.execute { implicit ctx: BlockchainContext =>
+      val trackingHeightOut = ctx.getHeight
+      val trackingHeightIn = Int.MaxValue
+
+      val fundingBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(fakeNanoErgs)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId1, fakeIndex)
+
+
+      val oracleBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(oracleNFT, 1))
+          .registers(KioskLong(oracleRateXY).getErgoValue)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId2, fakeIndex)
+
+      val lpBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(reservesX)
+          .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalance), new ErgoToken(dexyUSD, reservesY))
+          .registers(KioskLong(lpInCirc).getErgoValue)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
+      val tracking98Box =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(tracking98NFT, 1))
+          .registers(
+            KioskInt(denomIn).getErgoValue, // numerator for 98%
+            KioskInt(numIn).getErgoValue, // denominator for 98%
+            KioskBoolean(true).getErgoValue, // isBelow
+            KioskInt(trackingHeightIn).getErgoValue // currently set to INF (input box state is "notTriggeredEarlier")
+          )
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), DexySpec.trackingScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
+      val validTrackingOutBox = KioskBox(
+        changeAddress, // <--------------- this value is changed
+        minStorageRent,
+        registers = Array(KioskInt(denomIn), KioskInt(numIn), KioskBoolean(true), KioskInt(trackingHeightOut)),
+        tokens = Array((tracking98NFT, 1))
+      )
+
+      // all ok, not triggered earlier, triggered now
+      the[Exception] thrownBy {
+        TxUtil.createTx(Array(tracking98Box, fundingBox), Array(oracleBox, lpBox),
+          Array(validTrackingOutBox),
+          fee = 1000000L,
+          changeAddress,
+          Array[String](),
+          Array[DhtData](),
+          false
+        )
+      } should have message "Script reduced to false"
+    }
+  }
+
+  property("Trigger 98% tracker should fail if wrong oracle NFT") {
+    // following params will decide if its a valid tracking or not
+    val lpInCirc = 10000L
+    val oracleRateXY = 10000L
+    val lpBalance = 10000000L
+    val reservesX = 10000000000L
+    val reservesY = 1000000L
+
+    val denomIn = 49 // 49/50 = 98%
+    val numIn = 50
+
+    val lpRateXY = reservesX / reservesY
+    val x = oracleRateXY * denomIn
+    val y = numIn * lpRateXY
+
+    val toTrigger = x < y
+    assert(toTrigger)
+
+    ergoClient.execute { implicit ctx: BlockchainContext =>
+      val trackingHeightOut = ctx.getHeight
+      val trackingHeightIn = Int.MaxValue
+
+      val fundingBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(fakeNanoErgs)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId1, fakeIndex)
+
+
+      val oracleBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(dummyTokenId, 1)) // <--------------- this value is changed
+          .registers(KioskLong(oracleRateXY).getErgoValue)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId2, fakeIndex)
+
+      val lpBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(reservesX)
+          .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalance), new ErgoToken(dexyUSD, reservesY))
+          .registers(KioskLong(lpInCirc).getErgoValue)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
+      val tracking98Box =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(tracking98NFT, 1))
+          .registers(
+            KioskInt(denomIn).getErgoValue, // numerator for 98%
+            KioskInt(numIn).getErgoValue, // denominator for 98%
+            KioskBoolean(true).getErgoValue, // isBelow
+            KioskInt(trackingHeightIn).getErgoValue // currently set to INF (input box state is "notTriggeredEarlier")
+          )
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), DexySpec.trackingScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
+      val validTrackingOutBox = KioskBox(
+        trackingAddress,
+        minStorageRent,
+        registers = Array(KioskInt(denomIn), KioskInt(numIn), KioskBoolean(true), KioskInt(trackingHeightOut)),
+        tokens = Array((tracking98NFT, 1))
+      )
+
+      // all ok, not triggered earlier, triggered now
+      the[Exception] thrownBy {
+        TxUtil.createTx(Array(tracking98Box, fundingBox), Array(oracleBox, lpBox),
+          Array(validTrackingOutBox),
+          fee = 1000000L,
+          changeAddress,
+          Array[String](),
+          Array[DhtData](),
+          false
+        )
+      } should have message "Script reduced to false"
+    }
+  }
+
+  property("Trigger 98% tracker should fail if wrong lp NFT") {
+    // following params will decide if its a valid tracking or not
+    val lpInCirc = 10000L
+    val oracleRateXY = 10000L
+    val lpBalance = 10000000L
+    val reservesX = 10000000000L
+    val reservesY = 1000000L
+
+    val denomIn = 49 // 49/50 = 98%
+    val numIn = 50
+
+    val lpRateXY = reservesX / reservesY
+    val x = oracleRateXY * denomIn
+    val y = numIn * lpRateXY
+
+    val toTrigger = x < y
+    assert(toTrigger)
+
+    ergoClient.execute { implicit ctx: BlockchainContext =>
+      val trackingHeightOut = ctx.getHeight
+      val trackingHeightIn = Int.MaxValue
+
+      val fundingBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(fakeNanoErgs)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId1, fakeIndex)
+
+
+      val oracleBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(oracleNFT, 1))
+          .registers(KioskLong(oracleRateXY).getErgoValue)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId2, fakeIndex)
+
+      val lpBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(reservesX)
+          .tokens(new ErgoToken(dummyTokenId, 1), // <--------------- this value is changed
+            new ErgoToken(lpToken, lpBalance), new ErgoToken(dexyUSD, reservesY))
+          .registers(KioskLong(lpInCirc).getErgoValue)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
+      val tracking98Box =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(tracking98NFT, 1))
+          .registers(
+            KioskInt(denomIn).getErgoValue, // numerator for 98%
+            KioskInt(numIn).getErgoValue, // denominator for 98%
+            KioskBoolean(true).getErgoValue, // isBelow
+            KioskInt(trackingHeightIn).getErgoValue // currently set to INF (input box state is "notTriggeredEarlier")
+          )
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), DexySpec.trackingScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
+      val validTrackingOutBox = KioskBox(
+        trackingAddress,
+        minStorageRent,
+        registers = Array(KioskInt(denomIn), KioskInt(numIn), KioskBoolean(true), KioskInt(trackingHeightOut)),
+        tokens = Array((tracking98NFT, 1))
+      )
+
+      // all ok, not triggered earlier, triggered now
+      the[Exception] thrownBy {
+        TxUtil.createTx(Array(tracking98Box, fundingBox), Array(oracleBox, lpBox),
+          Array(validTrackingOutBox),
+          fee = 1000000L,
+          changeAddress,
+          Array[String](),
+          Array[DhtData](),
+          false
+        )
+      } should have message "Script reduced to false"
     }
   }
 

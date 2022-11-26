@@ -116,6 +116,93 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
     }
   }
 
+  property("Swap (sell Ergs) should fail if Lp address changed") {
+    val oracleRateXy = 10000L
+    val lpBalance = 100000000L
+    val reservesXIn = 1000000000000L
+    val reservesYIn = 100000000L
+
+    val rate = reservesYIn.toDouble / reservesXIn
+    val sellX = 10000000L
+    val buyY = (sellX * rate * (feeDenomLp - feeNumLp) / feeDenomLp).toLong
+    assert(buyY == 997)
+
+    val reservesXOut = reservesXIn + sellX
+    val reservesYOut = reservesYIn - buyY
+
+    val deltaReservesX = reservesXOut - reservesXIn
+    val deltaReservesY = reservesYOut - reservesYIn
+
+    assert(BigInt(deltaReservesY) * reservesXIn * feeDenomLp >= BigInt(deltaReservesX) * (feeNumLp - feeDenomLp) * reservesYIn )
+
+    ergoClient.execute { implicit ctx: BlockchainContext =>
+
+      val fundingBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(fakeNanoErgs)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId1, fakeIndex)
+
+      val dummyBox = // ToDo: see if this can be removed
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(dummyNanoErgs)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId5, fakeIndex)
+
+      val oracleBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(oracleNFT, 1))
+          .registers(KioskLong(oracleRateXy).getErgoValue)
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId2, fakeIndex)
+
+      val lpBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(reservesXIn)
+          .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalance), new ErgoToken(dexyUSD, reservesYIn))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
+      val validLpOutBox = KioskBox(
+        changeAddress,  // <--------------- this value is changed
+        reservesXOut,
+        registers = Array(),
+        tokens = Array((lpNFT, 1), (lpToken, lpBalance), (dexyUSD, reservesYOut))
+      )
+
+      val dummyOutputBox = KioskBox(
+        changeAddress,
+        dummyNanoErgs,
+        registers = Array(),
+        tokens = Array((dexyUSD, buyY))
+      )
+
+      the[Exception] thrownBy {
+        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
+          Array(validLpOutBox, dummyOutputBox),
+          fee = 1000000L,
+          changeAddress,
+          Array[String](),
+          Array[DhtData](),
+          false
+        )
+      } should have message "Script reduced to false"
+    }
+  }
+
   property("Swap (sell Ergs) should work irrespective of oracle rate") {
     val lpInCirc = 10000L
     val oracleRateXy = 0L // set oracle rate to 0
