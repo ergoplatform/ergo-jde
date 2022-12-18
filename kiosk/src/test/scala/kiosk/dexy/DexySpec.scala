@@ -255,6 +255,7 @@ object DexySpec {
        |  val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}")
        |
        |  val t_free = 100
+       |  val t_buffer = 5 // max delay permitted after broadcasting and confirmation of the tx spending this box
        |
        |  val feeNum = 10
        |  val feeDenom = 1000
@@ -295,7 +296,13 @@ object DexySpec {
        |
        |  val validAmount = dexyMinted <= availableToMint
        |
-       |  val validSuccessorR4 = successorR4 == (if (isCounterReset) HEIGHT + t_free else selfInR4)
+       |  // val validSuccessorR4 = successorR4 == (if (isCounterReset) HEIGHT + t_free else selfInR4)
+       |  val validSuccessorR4 = if (!isCounterReset) {
+       |    successorR4 == selfInR4
+       |  } else { // set R4 to HEIGHT_AT_BROADCAST + t_free + t_buffer
+       |    successorR4 >= HEIGHT + t_free &&
+       |    successorR4 <= HEIGHT + t_free + t_buffer
+       |  }
        |  val validSuccessorR5 = successorR5 == availableToMint - dexyMinted
        |
        |  val validBankBoxInOut = bankBoxIn.tokens(0)._1 == bankNFT
