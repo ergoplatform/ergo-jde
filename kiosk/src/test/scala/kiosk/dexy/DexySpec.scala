@@ -152,6 +152,7 @@ object DexySpec {
        |  val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}")
        |
        |  val T_arb = 30 // 30 blocks = 1 hour
+       |  val T_buffer = 5 // max delay permitted after broadcasting and confirmation of the tx spending this box
        |  val thresholdPercent = 101 // 101% or more value (of LP in terms of OraclePool) will trigger action
        |
        |  val feeNum = 5
@@ -198,7 +199,13 @@ object DexySpec {
        |
        |  val validAmount = dexyMinted <= availableToMint
        |
-       |  val validSuccessorR4 = successorR4 == (if (isCounterReset) HEIGHT + T_arb else selfInR4)
+       |  val validSuccessorR4 = if (!isCounterReset) {
+       |    successorR4 == selfInR4
+       |  } else { // set R4 to HEIGHT_AT_BROADCAST + T_arb + T_buffer
+       |    successorR4 >= HEIGHT + T_arb &&
+       |    successorR4 <= HEIGHT + T_arb + T_buffer
+       |  }
+       |
        |  val validSuccessorR5 = successorR5 == availableToMint - dexyMinted
        |
        |  val validBankBoxInOut = bankBoxIn.tokens(0)._1 == bankNFT
@@ -206,8 +213,9 @@ object DexySpec {
        |  val validOracleBox = oracleBox.tokens(0)._1 == oracleNFT
        |  val validSuccessor = successor.tokens == SELF.tokens                     && // NFT preserved
        |                       successor.propositionBytes == SELF.propositionBytes && // script preserved
-       |                       successor.value > SELF.value                        &&
-       |                       validSuccessorR5 && validSuccessorR4
+       |                       successor.value >= SELF.value                       &&
+       |                       validSuccessorR5                                    &&
+       |                       validSuccessorR4
        |
        |  val validDelay = lpBox.R5[Int].get < HEIGHT - T_arb // at least T_arb blocks have passed since the tracking started
        |  val validThreshold = lpRate * 100 > thresholdPercent * oracleRate
@@ -254,8 +262,8 @@ object DexySpec {
        |  val bankNFT = fromBase64("${Base64.encode(bankNFT.decodeHex)}")
        |  val lpNFT = fromBase64("${Base64.encode(lpNFT.decodeHex)}")
        |
-       |  val t_free = 100
-       |  val t_buffer = 5 // max delay permitted after broadcasting and confirmation of the tx spending this box
+       |  val T_free = 100
+       |  val T_buffer = 5 // max delay permitted after broadcasting and confirmation of the tx spending this box
        |
        |  val feeNum = 10
        |  val feeDenom = 1000
@@ -296,12 +304,11 @@ object DexySpec {
        |
        |  val validAmount = dexyMinted <= availableToMint
        |
-       |  // val validSuccessorR4 = successorR4 == (if (isCounterReset) HEIGHT + t_free else selfInR4)
        |  val validSuccessorR4 = if (!isCounterReset) {
        |    successorR4 == selfInR4
-       |  } else { // set R4 to HEIGHT_AT_BROADCAST + t_free + t_buffer
-       |    successorR4 >= HEIGHT + t_free &&
-       |    successorR4 <= HEIGHT + t_free + t_buffer
+       |  } else { // set R4 to HEIGHT_AT_BROADCAST + T_free + T_buffer
+       |    successorR4 >= HEIGHT + T_free &&
+       |    successorR4 <= HEIGHT + T_free + T_buffer
        |  }
        |  val validSuccessorR5 = successorR5 == availableToMint - dexyMinted
        |
@@ -310,7 +317,7 @@ object DexySpec {
        |  val validOracleBox = oracleBox.tokens(0)._1 == oracleNFT
        |  val validSuccessor = successor.tokens == SELF.tokens                     && // NFT preserved
        |                       successor.propositionBytes == SELF.propositionBytes && // script preserved
-       |                       successor.value > SELF.value                        &&
+       |                       successor.value >= SELF.value                       &&
        |                       validSuccessorR5                                    &&
        |                       validSuccessorR4
        |
@@ -842,7 +849,7 @@ object DexySpec {
        |  // check that self output is correct
        |  val validSuccessor = successor.propositionBytes == SELF.propositionBytes  &&
        |                       successor.tokens == SELF.tokens                      &&
-       |                       successor.value == SELF.value                        &&
+       |                       successor.value >= SELF.value                        &&
        |                       successor.creationInfo._1 >= HEIGHT - buffer
        |
        |
@@ -922,7 +929,7 @@ object DexySpec {
         |    
         |    val tracking101BoxIndex = 1
         |    
-        |    val minTokens = 100 // if Dexy tokens less than this number in bank box, then bank is considered "empty"
+        |    val minBankNanoErgs = 10000000000L // if Bank nanoErgs less than this number in bank box, then bank is considered "empty"
         |    
         |    val tracking95NFT = fromBase64("${Base64.encode(tracking95NFT.decodeHex)}")
         |    val tracking101NFT = fromBase64("${Base64.encode(tracking101NFT.decodeHex)}")
@@ -963,7 +970,7 @@ object DexySpec {
         |    
         |    val validBankBox = if (CONTEXT.dataInputs.size > bankBoxIndex) {
         |      CONTEXT.dataInputs(bankBoxIndex).tokens(0)._1 == bankNFT &&
-        |      CONTEXT.dataInputs(bankBoxIndex).tokens(1)._2 <= minTokens
+        |      CONTEXT.dataInputs(bankBoxIndex).value <= minBankNanoErgs
         |    } else false
         |    
         |    val validOracleBox = oracleBox.tokens(0)._1 == oracleNFT 
