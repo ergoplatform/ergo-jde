@@ -175,7 +175,7 @@ object DexySpec {
        |  val isCounterReset = HEIGHT > selfInR4
        |
        |  val oracleRateWithoutFee = oracleBox.R4[Long].get // can assume always > 0 (ref oracle pool contracts) NanoErgs per USD
-       |  val oracleRate = oracleRateWithoutFee * (feeNum + feeDenom) / feeDenom
+       |  val oracleRateWithFee = oracleRateWithoutFee * (feeNum + feeDenom) / feeDenom
        |
        |  val lpReservesX = lpBox.value
        |  val lpReservesY = lpBox.tokens(2)._2 // dexyReserves
@@ -183,17 +183,17 @@ object DexySpec {
        |
        |  val dexyMinted = bankBoxIn.tokens(1)._2 - bankBoxOut.tokens(1)._2
        |  val ergsAdded = bankBoxOut.value - bankBoxIn.value
-       |  val validDelta = ergsAdded >= dexyMinted * oracleRate && ergsAdded > 0 // dexyMinted must be (+)ve, since both ergsAdded and oracleRate are (+)ve
+       |  val validDelta = ergsAdded >= dexyMinted * oracleRateWithFee && ergsAdded > 0 // dexyMinted must be (+)ve, since both ergsAdded and oracleRateWithFee are (+)ve
        |
-       |  val maxAllowedIfReset = (lpReservesX - oracleRate * lpReservesY) / oracleRate
+       |  val maxAllowedIfReset = (lpReservesX - oracleRateWithFee * lpReservesY) / oracleRateWithFee
        |
        |  // above formula:
-       |  // Before mint rate is lpReservesX / lpReservesY, which should be greater than oracleRate
-       |  // After mint rate is lpReservesX / (lpReservesY + dexyMinted), which should be same or less than than oracleRate
+       |  // Before mint rate is lpReservesX / lpReservesY, which should be greater than oracleRateWithFee
+       |  // After mint rate is lpReservesX / (lpReservesY + dexyMinted), which should be same or less than than oracleRateWithFee
        |  //  Thus:
-       |  //   lpReservesX / lpReservesY > oracleRate
-       |  //   lpReservesX / (lpReservesY + dexyMinted) <= oracleRate
-       |  // above gives min value of dexyMinted = (lpReservesX - oracleRate * lpReservesY) / oracleRate
+       |  //   lpReservesX / lpReservesY > oracleRateWithFee
+       |  //   lpReservesX / (lpReservesY + dexyMinted) <= oracleRateWithFee
+       |  // above gives min value of dexyMinted = (lpReservesX - oracleRateWithFee * lpReservesY) / oracleRateWithFee
        |
        |  val availableToMint = if (isCounterReset) maxAllowedIfReset else selfInR5
        |
@@ -218,7 +218,7 @@ object DexySpec {
        |                       validSuccessorR4
        |
        |  val validDelay = lpBox.R5[Int].get < HEIGHT - T_arb // at least T_arb blocks have passed since the tracking started
-       |  val validThreshold = lpRate * 100 > thresholdPercent * oracleRate
+       |  val validThreshold = lpRate * 100 > thresholdPercent * oracleRateWithFee
        |
        |  sigmaProp(validDelay && validThreshold && validAmount && validBankBoxInOut && validLpBox && validOracleBox && validSuccessor && validDelta)
        |}
@@ -285,18 +285,18 @@ object DexySpec {
        |  val isCounterReset = HEIGHT > selfInR4
        |
        |  val oracleRateWithoutFee = oracleBox.R4[Long].get // can assume always > 0 (ref oracle pool contracts) NanoErgs per USD
-       |  val oracleRate = oracleRateWithoutFee * (feeNum + feeDenom) / feeDenom
+       |  val oracleRateWithFee = oracleRateWithoutFee * (feeNum + feeDenom) / feeDenom
        |
        |  val lpReservesX = lpBox.value
        |  val lpReservesY = lpBox.tokens(2)._2 // dexyReserves
        |  val lpRate = lpReservesX / lpReservesY
        |
-       |  val validRateFreeMint = 98 * lpRate < oracleRate * 100 &&
-       |                          oracleRate * 100 < 102 * lpRate
+       |  val validRateFreeMint = 98 * lpRate < oracleRateWithoutFee * 100 &&
+       |                          oracleRateWithoutFee * 100 < 102 * lpRate
        |
        |  val dexyMinted = bankBoxIn.tokens(1)._2 - bankBoxOut.tokens(1)._2
        |  val ergsAdded = bankBoxOut.value - bankBoxIn.value
-       |  val validDelta = ergsAdded >= dexyMinted * oracleRate && ergsAdded > 0 // dexyMinted must be (+)ve, since both ergsAdded and oracleRate are (+)ve
+       |  val validDelta = ergsAdded >= dexyMinted * oracleRateWithFee && ergsAdded > 0 // dexyMinted must be (+)ve, since both ergsAdded and oracleRateWithFee are (+)ve
        |
        |  val maxAllowedIfReset = lpReservesY / 100
        |
