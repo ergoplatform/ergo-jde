@@ -499,8 +499,6 @@ object DexySpec {
        |    // Y is the secondary token
        |    // In DexyUSD, X is NanoErg and Y is USD
        |
-       |    // Oracle data:
-       |    // R4 of the oracle contains the rate "nanoErgs per USD" in Long format
        |
        |    // inputs
        |    val interventionBoxIndex = 2   // ToDo: fix if possible, otherwise each tx needs at least 3 inputs (add dummy inputs for now)
@@ -510,10 +508,6 @@ object DexySpec {
        |    // outputs
        |    val selfOutIndex = 0
        |
-       |    // data inputs
-       |    val oracleBoxIndex = 0
-       |
-       |    val oracleNFT = fromBase64("${Base64.encode(oracleNFT.decodeHex)}") // to identify oracle pool box
        |    val interventionNFT = fromBase64("${Base64.encode(interventionNFT.decodeHex)}")
        |    val extractionNFT = fromBase64("${Base64.encode(extractionNFT.decodeHex)}")
        |    val swapNFT = fromBase64("${Base64.encode(swapNFT.decodeHex)}")
@@ -526,16 +520,12 @@ object DexySpec {
        |    val mintBox = INPUTS(lpActionBoxIndex)
        |    val redeemBox = INPUTS(lpActionBoxIndex)
        |
-       |    val minStorageRent = 10000000L  // this many number of nanoErgs are going to be permanently locked
-       |    
        |    val successor = OUTPUTS(selfOutIndex) // copy of this box after exchange
-       |    val oracleBox = CONTEXT.dataInputs(oracleBoxIndex) // oracle pool box
        |
-       |    val validSwapBox      = swapBox.tokens(0)._1 == swapNFT
-       |    val validMintBox      = mintBox.tokens(0)._1 == mintNFT
-       |    val validRedeemBox    = redeemBox.tokens(0)._1 == redeemNFT
+       |    val validSwap      = swapBox.tokens(0)._1 == swapNFT
+       |    val validMint      = mintBox.tokens(0)._1 == mintNFT
+       |    val validRedeem    = redeemBox.tokens(0)._1 == redeemNFT
        |
-       |    val validOracleBox    = oracleBox.tokens(0)._1 == oracleNFT
        |    val validIntervention = interventionBox.tokens(0)._1 == interventionNFT
        |    val validExtraction   = extractBox.tokens(0)._1 == extractionNFT
        |    
@@ -547,11 +537,10 @@ object DexySpec {
        |    val lpReservesOut = successor.tokens(1)
        |    val tokenYOut     = successor.tokens(2)
        |
-       |    val validSuccessorScript = successor.propositionBytes == SELF.propositionBytes
-       |    
+       |    val preservedScript      = successor.propositionBytes == SELF.propositionBytes
        |    val preservedLpNft       = lpNftIn == lpNftOut
-       |    val validLpBox           = lpReservesOut._1 == lpReservesIn._1
-       |    val validY               = tokenYOut._1 == tokenYIn._1
+       |    val preservedLpTokenId   = lpReservesOut._1 == lpReservesIn._1
+       |    val preservedDexyTokenId = tokenYOut._1 == tokenYIn._1
        |
        |    // Note:
        |    //    supplyLpIn = initialLp - lpReservesIn._2
@@ -566,22 +555,17 @@ object DexySpec {
        |    // since tokens can be repeated, we ensure for sanity that there are no more tokens
        |    val noMoreTokens         = successor.tokens.size == 3
        |  
-       |    val validStorageRent     = successor.value >= minStorageRent
+       |    val lpAction = validSwap || validMint || validRedeem
        |
-       |    val lpAction = validSwapBox || validMintBox || validRedeemBox
-       |
-       |    val dexyAction = (validIntervention ||
-       |                      validExtraction) && // extract to future or release in future
+       |    val dexyAction = (validIntervention || validExtraction) &&
        |                      deltaSupplyLp == 0 // ensure Lp tokens are not extracted during dexyAction
        |    sigmaProp(
-       |        validSuccessorScript      &&
-       |        validOracleBox            &&
+       |        preservedScript           &&
        |        preservedLpNft            &&
-       |        validLpBox                &&
-       |        validY                    &&
+       |        preservedLpTokenId        &&
+       |        preservedDexyTokenId      &&
        |        noMoreTokens              &&
-       |        (lpAction || dexyAction)  &&
-       |        validStorageRent
+       |        (lpAction || dexyAction)
        |    )
        |}
        |""".stripMargin
@@ -940,7 +924,10 @@ object DexySpec {
        |  // 0 LP            |  LP            |   Oracle
        |  // 1 Bank          |  Bank          |   Tracking (98%)
        |  // 2 Intervention  |  Intervention  |   
-       |  
+       |
+       |  // Oracle data:
+       |  // R4 of the oracle contains the rate "nanoErgs per USD" in Long format
+       |
        |  // inputs indices
        |  val lpInIndex = 0
        |  val bankInIndex = 1
@@ -1058,7 +1045,7 @@ object DexySpec {
         |    // [1] Extract to future
         |    //   Input         |  Output        |   Data-Input 
         |    // -----------------------------------------------
-        |    // 0 LP            |  LP            |   Oracle (unused here)
+        |    // 0 LP            |  LP            |   Oracle
         |    // 1 Extract       |  Extract       |   Bank   (to check that bank is empty)
         |    // 2               |                |   Tracking (95%)
         |    // 
@@ -1071,7 +1058,10 @@ object DexySpec {
         |    // ToDo: verify following
         |    //   cannot change prop bytes for LP, Extract and Tracking box
         |    //   cannot change tokens/nanoErgs in LP, extract and tracking box except what is permitted
-        |    
+        |
+        |    // Oracle data:
+        |    // R4 of the oracle contains the rate "nanoErgs per USD" in Long format
+        |
         |    val lpBoxInIndex = 0
         |    val lpBoxOutIndex = 0
         |    
@@ -1172,7 +1162,7 @@ object DexySpec {
         |                        validTracking101Box
         |                        // ToDo: do we need to check that input ratio is > 101%? (its already checked in tracker)
         |                         
-        |    sigmaProp(validSuccessor && validDelay && validLpBox && (validExtract || validRelease))
+        |    sigmaProp(validSuccessor && validDelay && validLpBox && validOracleBox && (validExtract || validRelease))
         |}
         |""".stripMargin
 
