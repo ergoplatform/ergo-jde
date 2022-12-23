@@ -1006,10 +1006,9 @@ object DexySpec {
        |  
        |  val validTracking = trackingHeight < HEIGHT - T_int // at least T_int blocks have passed since the tracking started
        |                  
-       |  val lpRateXyOutTimesLpReservesYOutTimes100 = lpRateXyOutTimesLpReservesYOut * 100
+       |  val lpRateXyOutTimesLpReservesYOutTimes1000 = lpRateXyOutTimesLpReservesYOut * 1000
        |
-       |  val validAmount = lpRateXyOutTimesLpReservesYOutTimes100 >= oracleRateXy * lpReservesYOut * 105 && // new rate must be >= 1.05 times oracle rate
-       |                    lpRateXyOutTimesLpReservesYOutTimes100 <= oracleRateXy * lpReservesYOut * 110    // new rate must be <= 1.1 times oracle rate
+       |  val validAmount = lpRateXyOutTimesLpReservesYOut * 1000 <= oracleRateXy * lpReservesYOut * 995    // new rate must be <= 99.5 times oracle rate
        |
        |  val validDeltas = deltaBankErgs <= deltaLpX  &&  // ergs reduced in bank box must be <= ergs gained in LP
        |                    deltaBankTokens >= deltaLpY    // tokens gained in bank box must be >= tokens reduced in LP
