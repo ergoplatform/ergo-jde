@@ -511,8 +511,8 @@ object DexySpec {
        |    val interventionNFT = fromBase64("${Base64.encode(interventionNFT.decodeHex)}")
        |    val extractionNFT = fromBase64("${Base64.encode(extractionNFT.decodeHex)}")
        |    val swapNFT = fromBase64("${Base64.encode(swapNFT.decodeHex)}")
-       |    val mintNFT = fromBase64("${Base64.encode(swapNFT.decodeHex)}")
-       |    val redeemNFT = fromBase64("${Base64.encode(swapNFT.decodeHex)}")
+       |    val mintNFT = fromBase64("${Base64.encode(mintNFT.decodeHex)}")
+       |    val redeemNFT = fromBase64("${Base64.encode(redeemNFT.decodeHex)}")
        |
        |    val interventionBox = INPUTS(interventionBoxIndex)
        |    val extractBox = INPUTS(extractBoxIndex)

@@ -86,7 +86,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
 
       val validSwapOutBox = KioskBox(
         lpSwapAddress,
-        reservesXOut,
+        minStorageRent,
         registers = Array(),
         tokens = Array((swapNFT, 1))
       )
@@ -171,7 +171,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
 
       val validSwapOutBox = KioskBox(
         lpSwapAddress,
-        reservesXOut,
+        minStorageRent,
         registers = Array(),
         tokens = Array((swapNFT, 1))
       )
@@ -255,7 +255,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
 
       val validSwapOutBox = KioskBox(
         lpSwapAddress,
-        reservesXOut,
+        minStorageRent,
         registers = Array(),
         tokens = Array((swapNFT, 1))
       )
@@ -340,7 +340,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
 
       val validSwapOutBox = KioskBox(
         lpSwapAddress,
-        reservesXOut,
+        minStorageRent,
         registers = Array(),
         tokens = Array((swapNFT, 1))
       )
@@ -426,7 +426,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
 
       val validSwapOutBox = KioskBox(
         lpSwapAddress,
-        reservesXOut,
+        minStorageRent,
         registers = Array(),
         tokens = Array((swapNFT, 1))
       )
@@ -500,7 +500,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
 
       val validSwapOutBox = KioskBox(
         lpSwapAddress,
-        reservesXOut,
+        minStorageRent,
         registers = Array(),
         tokens = Array((swapNFT, 1))
       )
