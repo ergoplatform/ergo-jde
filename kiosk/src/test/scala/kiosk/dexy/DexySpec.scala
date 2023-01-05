@@ -75,8 +75,8 @@ object DexySpec {
        |  //   Input         |  Output        |   Data-Input
        |  // -----------------------------------------------
        |  // 0 Payout        |  Payout        |   Oracle
-       |  // 2 Bank          |  Bank          |   LP
-       |  // 3               |  Reward        |
+       |  // 1 Bank          |  Bank          |   LP
+       |  // 2               |  Reward        |
        |
        |  // This box emits DexyUSD. The contract only enforces some basic rules (such as the contract and token Ids) are preserved.
        |  // It does not does not encode the emission logic. It just requires certain boxes in the inputs to contain certain NFTs.
@@ -484,7 +484,7 @@ object DexySpec {
        |    // -----------------------------------------------
        |    // 0 LP            |  LP            |   Oracle
        |    // 1 Extract       |  Extract       |   Bank
-       |    // 3               |                |   Tracking (95%)
+       |    // 2               |                |   Tracking (95%)
        |    //
        |    // [6] Release extracted to future tokens
        |    //   Input         |  Output        |   Data-Input
