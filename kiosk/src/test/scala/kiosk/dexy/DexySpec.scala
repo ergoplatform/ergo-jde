@@ -14,6 +14,9 @@ object DexySpec {
   val interventionNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val extractionNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A54" // TODO replace with actual
   val payoutNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A52" // TODO replace with actual
+  val lpSwapNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A51" // TODO replace with actual
+  val lpMintNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A50" // TODO replace with actual
+  val lpRedeemNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A59" // TODO replace with actual
 
   val freeMintNFT = "061A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val arbitrageMintNFT = "961A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
@@ -72,8 +75,8 @@ object DexySpec {
        |  //   Input         |  Output        |   Data-Input
        |  // -----------------------------------------------
        |  // 0 Payout        |  Payout        |   Oracle
-       |  // 2 Bank          |  Bank          |   LP
-       |  // 3               |  Reward        |
+       |  // 1 Bank          |  Bank          |   LP
+       |  // 2               |  Reward        |
        |
        |  // This box emits DexyUSD. The contract only enforces some basic rules (such as the contract and token Ids) are preserved.
        |  // It does not does not encode the emission logic. It just requires certain boxes in the inputs to contain certain NFTs.
@@ -461,24 +464,27 @@ object DexySpec {
        |    // [2] Swap
        |    //   Input         |  Output        |   Data-Input
        |    // -----------------------------------------------
-       |    // 0 LP            |  LP            |   Oracle
+       |    // 0 LP            |  LP            |
+       |    // 1 Swap          |  Swap          |
        |    //
        |    // [3] Redeem LP tokens
        |    //   Input         |  Output        |   Data-Input
        |    // -----------------------------------------------
        |    // 0 LP            |  LP            |   Oracle
+       |    // 1 Redeem        |  Redeem
        |    //
        |    // [4] Mint LP tokens
        |    //   Input         |  Output        |   Data-Input
        |    // -----------------------------------------------
-       |    // 0 LP            |  LP            |   Oracle
+       |    // 0 LP            |  LP            |
+       |    // 1 Mint          |  Mint
        |    //
        |    // [5] Extract to future
        |    //   Input         |  Output        |   Data-Input
        |    // -----------------------------------------------
        |    // 0 LP            |  LP            |   Oracle
        |    // 1 Extract       |  Extract       |   Bank
-       |    // 3               |                |   Tracking (95%)
+       |    // 2               |                |   Tracking (95%)
        |    //
        |    // [6] Release extracted to future tokens
        |    //   Input         |  Output        |   Data-Input
@@ -493,35 +499,34 @@ object DexySpec {
        |    // Y is the secondary token
        |    // In DexyUSD, X is NanoErg and Y is USD
        |
-       |    // Oracle data:
-       |    // R4 of the oracle contains the rate "nanoErgs per USD" in Long format
        |
-       |    val initialLp = ${initialLp}L   // How many LP initially minted. Used to compute Lp in circulation (supply Lp).
-       |    // Note that at bootstrap, we may have initialLp > tokens(1) quantity to consider the initial token burning in UniSwap v2
-       |
-       |    val selfOutIndex = 0
-       |    val oracleBoxIndex = 0
+       |    // inputs
        |    val interventionBoxIndex = 2   // ToDo: fix if possible, otherwise each tx needs at least 3 inputs (add dummy inputs for now)
        |    val extractBoxIndex = 1
+       |    val lpActionBoxIndex = 1 // swap/redeem/mint
        |
-       |    val oracleNFT = fromBase64("${Base64.encode(oracleNFT.decodeHex)}") // to identify oracle pool box
+       |    // outputs
+       |    val selfOutIndex = 0
+       |
        |    val interventionNFT = fromBase64("${Base64.encode(interventionNFT.decodeHex)}")
        |    val extractionNFT = fromBase64("${Base64.encode(extractionNFT.decodeHex)}")
+       |    val swapNFT = fromBase64("${Base64.encode(lpSwapNFT.decodeHex)}")
+       |    val mintNFT = fromBase64("${Base64.encode(lpMintNFT.decodeHex)}")
+       |    val redeemNFT = fromBase64("${Base64.encode(lpRedeemNFT.decodeHex)}")
        |
        |    val interventionBox = INPUTS(interventionBoxIndex)
        |    val extractBox = INPUTS(extractBoxIndex)
+       |    val swapBox = INPUTS(lpActionBoxIndex)
+       |    val mintBox = INPUTS(lpActionBoxIndex)
+       |    val redeemBox = INPUTS(lpActionBoxIndex)
        |
-       |    // constants
-       |    val feeNum = ${feeNumLp}L // 0.3 % if feeNum is 3 and feeDenom is 1000
-       |    val feeDenom = ${feeDenomLp}L
-       |    
-       |    val minStorageRent = 10000000L  // this many number of nanoErgs are going to be permanently locked
-       |    
        |    val successor = OUTPUTS(selfOutIndex) // copy of this box after exchange
-       |    val oracleBox = CONTEXT.dataInputs(oracleBoxIndex) // oracle pool box
-       |    
-       |    val validOracleBox    = oracleBox.tokens(0)._1 == oracleNFT
-       |    val validIntervention = interventionBox.tokens(0)._1 == interventionNFT 
+       |
+       |    val validSwap      = swapBox.tokens(0)._1 == swapNFT
+       |    val validMint      = mintBox.tokens(0)._1 == mintNFT
+       |    val validRedeem    = redeemBox.tokens(0)._1 == redeemNFT
+       |
+       |    val validIntervention = interventionBox.tokens(0)._1 == interventionNFT
        |    val validExtraction   = extractBox.tokens(0)._1 == extractionNFT
        |    
        |    val lpNftIn      = SELF.tokens(0)
@@ -532,51 +537,46 @@ object DexySpec {
        |    val lpReservesOut = successor.tokens(1)
        |    val tokenYOut     = successor.tokens(2)
        |
-       |    val supplyLpIn = initialLp - lpReservesIn._2     // LP tokens in circulation in input LP box
-       |    val supplyLpOut = initialLp - lpReservesOut._2     // LP tokens in circulation in output LP box
-       |
-       |    val validSuccessorScript = successor.propositionBytes == SELF.propositionBytes
-       |    
+       |    val preservedScript      = successor.propositionBytes == SELF.propositionBytes
        |    val preservedLpNft       = lpNftIn == lpNftOut
-       |    val validLpBox           = lpReservesOut._1 == lpReservesIn._1
-       |    val validY               = tokenYOut._1 == tokenYIn._1
-       |    val validSupplyLpOut     = supplyLpOut >= 0
-       |       
+       |    val preservedLpTokenId   = lpReservesOut._1 == lpReservesIn._1
+       |    val preservedDexyTokenId = tokenYOut._1 == tokenYIn._1
+       |
+       |    // Note:
+       |    //    supplyLpIn = initialLp - lpReservesIn._2
+       |    //    supplyLpOut = initialLp - lpReservesOut._2
+       |    // Thus:
+       |    //    deltaSupplyLp = supplyLpOut - supplyLpIn
+       |    //                  = (initialLp - lpReservesOut._2) - (initialLp - lpReservesIn._2)
+       |    //                  = lpReservesIn._2 - lpReservesOut._2
+       |
+       |    val deltaSupplyLp  = lpReservesIn._2 - lpReservesOut._2
+       |
        |    // since tokens can be repeated, we ensure for sanity that there are no more tokens
        |    val noMoreTokens         = successor.tokens.size == 3
        |  
-       |    val validStorageRent     = successor.value > minStorageRent
+       |    val lpAction = validSwap || validMint || validRedeem
        |
-       |    val reservesXIn = SELF.value
-       |    val reservesYIn = tokenYIn._2
-       |    val reservesXOut = successor.value
-       |    val reservesYOut = tokenYOut._2
+       |    val dexyAction = (validIntervention || validExtraction) &&
+       |                      deltaSupplyLp == 0 // ensure Lp tokens are not extracted during dexyAction
+       |    sigmaProp(
+       |        preservedScript           &&
+       |        preservedLpNft            &&
+       |        preservedLpTokenId        &&
+       |        preservedDexyTokenId      &&
+       |        noMoreTokens              &&
+       |        (lpAction || dexyAction)
+       |    )
+       |}
+       |""".stripMargin
+
+  val lpSwapScript =
+    s"""{   // This box: (LP Swap box)
+       |    //
+       |    // TOKENS
+       |    //   Tokens(0): NFT to uniquely identify this box
        |
-       |    val oracleRateXy = oracleBox.R4[Long].get
-       |    val lpRateXyIn = reservesXIn / reservesYIn  // we can assume that reservesYIn > 0 (since at least one token must exist)
-       |     
-       |    val validRateForRedeemingLp = oracleRateXy > lpRateXyIn * 98 / 100 // lpRate must be >= 0.98 * oracleRate // these parameters need to be tweaked
-       |    // ToDo: Check if we still need above if we also have the tracking contract?
-       |     
-       |    val deltaSupplyLp  = supplyLpOut - supplyLpIn
-       |    val deltaReservesX = reservesXOut - reservesXIn
-       |    val deltaReservesY = reservesYOut - reservesYIn
-       |    
-       |    // LP formulae below using UniSwap v2 (with initial token burning by bootstrapping with positive R4)
-       |    val validMintLp = {
-       |        val sharesUnlocked = min(
-       |            deltaReservesX.toBigInt * supplyLpIn / reservesXIn,
-       |            deltaReservesY.toBigInt * supplyLpIn / reservesYIn
-       |        )
-       |        deltaSupplyLp <= sharesUnlocked
-       |    }
-       |
-       |    val validRedemption = {
-       |        val _deltaSupplyLp = deltaSupplyLp.toBigInt
-       |        // note: _deltaSupplyLp, deltaReservesX and deltaReservesY are negative
-       |        deltaReservesX.toBigInt * supplyLpIn >= _deltaSupplyLp * reservesXIn && deltaReservesY.toBigInt * supplyLpIn >= _deltaSupplyLp * reservesYIn
-       |    } && validRateForRedeemingLp
-       |
+       |    //
        |    // valid swap is as follows
        |    //
        |    // the value feeNum / feeDenom is the fraction of fee
@@ -609,34 +609,173 @@ object DexySpec {
        |    // deltaReservesY * reservesXIn * feeDenom >= - deltaReservesX * (feeDenom - feeNum) * reservesYIn
        |    // deltaReservesY * reservesXIn * feeDenom >= deltaReservesX * (feeNum - feeDenom) * reservesYIn
        |
+       |    val feeNum = ${feeNumLp}L // 0.3 % if feeNum is 3 and feeDenom is 1000
+       |    val feeDenom = ${feeDenomLp}L
+       |
+       |    val lpBoxInIndex = 0
+       |    val lpBoxOutIndex = 0
+       |
+       |    val selfOutIndex = 1
+       |    val successor = OUTPUTS(selfOutIndex)
+       |
+       |    val lpBoxIn = INPUTS(lpBoxInIndex)
+       |    val lpBoxOut = OUTPUTS(lpBoxOutIndex)
+       |
+       |    val lpReservesIn = lpBoxIn.tokens(1)
+       |    val lpReservesOut = lpBoxOut.tokens(1)
+       |
+       |    val reservesXIn = lpBoxIn.value
+       |    val reservesYIn = lpBoxIn.tokens(2)._2
+       |
+       |    val reservesXOut = lpBoxOut.value
+       |    val reservesYOut = lpBoxOut.tokens(2)._2
+       |
+       |    // Note:
+       |    //    supplyLpIn = initialLp - lpReservesIn._2
+       |    //    supplyLpOut = initialLp - lpReservesOut._2
+       |    // Thus:
+       |    //    deltaSupplyLp = supplyLpOut - supplyLpIn
+       |    //                  = (initialLp - lpReservesOut._2) - (initialLp - lpReservesIn._2)
+       |    //                  = lpReservesIn._2 - lpReservesOut._2
+       |
+       |    val deltaSupplyLp  = lpReservesIn._2 - lpReservesOut._2
+       |    val deltaReservesX = reservesXOut - reservesXIn
+       |    val deltaReservesY = reservesYOut - reservesYIn
        |
        |    val validSwap =
+       |      deltaSupplyLp == 0 && (
        |        if (deltaReservesX > 0)
-       |            deltaReservesY.toBigInt * reservesXIn * feeDenom >= deltaReservesX.toBigInt * (feeNum - feeDenom) * reservesYIn
+       |           deltaReservesY.toBigInt * reservesXIn * feeDenom >= deltaReservesX.toBigInt * (feeNum - feeDenom) * reservesYIn
        |        else
-       |            deltaReservesX.toBigInt * reservesYIn * feeDenom >= deltaReservesY.toBigInt * (feeNum - feeDenom) * reservesXIn
+       |           deltaReservesX.toBigInt * reservesYIn * feeDenom >= deltaReservesY.toBigInt * (feeNum - feeDenom) * reservesXIn
+       |      )
        |
-       |    val lpAction =
-       |        if (deltaSupplyLp == 0)
-       |            validSwap
-       |        else
-       |            if (deltaReservesX > 0 && deltaReservesY > 0) validMintLp
-       |            else validRedemption
+       |    val selfPreserved = successor.propositionBytes == SELF.propositionBytes  &&
+       |                        successor.value >= SELF.value                        &&
+       |                        successor.tokens == SELF.tokens
        |
-       |    val dexyAction = (validIntervention ||
-       |                      validExtraction) && // extract to future or release in future
-       |                      deltaSupplyLp == 0 // ensure Lp tokens are not extracted during dexyAction
-       |    sigmaProp(
-       |        validSupplyLpOut          &&
-       |        validSuccessorScript      &&
-       |        validOracleBox            &&
-       |        preservedLpNft            &&
-       |        validLpBox                &&
-       |        validY                    &&
-       |        noMoreTokens              &&
-       |        (lpAction || dexyAction)  &&
-       |        validStorageRent
-       |    )
+       |    sigmaProp(validSwap && selfPreserved)
+       |}
+       |""".stripMargin
+
+  val lpMintScript =
+    s"""{   // This box: (LP Mint box)
+       |    //
+       |    // TOKENS
+       |    //   Tokens(0): NFT to uniquely identify this box
+       |
+       |    val lpBoxInIndex = 0
+       |    val lpBoxOutIndex = 0
+       |
+       |    val selfOutIndex = 1
+       |    val successor = OUTPUTS(selfOutIndex)
+       |
+       |    val lpBoxIn = INPUTS(lpBoxInIndex)
+       |    val lpBoxOut = OUTPUTS(lpBoxOutIndex)
+       |
+       |    val lpReservesIn = lpBoxIn.tokens(1)
+       |    val lpReservesOut = lpBoxOut.tokens(1)
+       |
+       |    val reservesXIn = lpBoxIn.value
+       |    val reservesYIn = lpBoxIn.tokens(2)._2
+       |
+       |    val reservesXOut = lpBoxOut.value
+       |    val reservesYOut = lpBoxOut.tokens(2)._2
+       |
+       |    val supplyLpIn = ${initialLp}L - lpReservesIn._2
+       |
+       |    // Note:
+       |    //    supplyLpIn = initialLp - lpReservesIn._2
+       |    //    supplyLpOut = initialLp - lpReservesOut._2
+       |    // Thus:
+       |    //    deltaSupplyLp = supplyLpOut - supplyLpIn
+       |    //                  = (initialLp - lpReservesOut._2) - (initialLp - lpReservesIn._2)
+       |    //                  = lpReservesIn._2 - lpReservesOut._2
+       |
+       |    val deltaSupplyLp  = lpReservesIn._2 - lpReservesOut._2
+       |    val deltaReservesX = reservesXOut - reservesXIn
+       |    val deltaReservesY = reservesYOut - reservesYIn
+       |
+       |    // LP formulae below using UniSwap v2 (with initial token burning by bootstrapping with positive R4)
+       |    val validMintLp = deltaSupplyLp > 0 && deltaReservesX > 0 && deltaReservesY > 0 && {
+       |        val sharesUnlocked = min(
+       |            deltaReservesX.toBigInt * supplyLpIn / reservesXIn,
+       |            deltaReservesY.toBigInt * supplyLpIn / reservesYIn
+       |        )
+       |        deltaSupplyLp <= sharesUnlocked
+       |    }
+       |
+       |    val selfPreserved = successor.propositionBytes == SELF.propositionBytes  &&
+       |                        successor.value >= SELF.value                        &&
+       |                        successor.tokens == SELF.tokens
+       |
+       |    sigmaProp(validMintLp && selfPreserved)
+       |}
+       |""".stripMargin
+
+  val lpRedeemScript =
+    s"""{   // This box: (LP Redeem box)
+       |    //
+       |    // TOKENS
+       |    //   Tokens(0): NFT to uniquely identify this box
+       |
+       |    val initialLp = ${initialLp}L   // How many LP initially minted. Used to compute Lp in circulation (supply Lp).
+       |    // Note that at bootstrap, we may have initialLp > tokens stored in LP box quantity to consider the initial token burning in UniSwap v2
+       |
+       |    val lpBoxInIndex = 0 // input
+       |    val oracleBoxIndex = 0 // data input
+       |    val lpBoxOutIndex = 0 // output
+       |    val selfOutIndex = 1 // output
+       |
+       |    val oracleNFT = fromBase64("${Base64.encode(oracleNFT.decodeHex)}") // to identify oracle pool box
+       |
+       |    val lpBoxIn = INPUTS(lpBoxInIndex)
+       |
+       |    val oracleBox = CONTEXT.dataInputs(oracleBoxIndex)
+       |    val lpBoxOut = OUTPUTS(lpBoxOutIndex)
+       |    val successor = OUTPUTS(selfOutIndex)
+       |
+       |    val lpReservesIn = lpBoxIn.tokens(1)
+       |    val lpReservesOut = lpBoxOut.tokens(1)
+       |
+       |    val reservesXIn = lpBoxIn.value
+       |    val reservesYIn = lpBoxIn.tokens(2)._2
+       |
+       |    val reservesXOut = lpBoxOut.value
+       |    val reservesYOut = lpBoxOut.tokens(2)._2
+       |
+       |    val supplyLpIn = initialLp - lpReservesIn._2
+       |
+       |    val oracleRateXy = oracleBox.R4[Long].get
+       |    val lpRateXyIn = reservesXIn / reservesYIn  // we can assume that reservesYIn > 0 (since at least one token must exist)
+       |
+       |    val validOracleBox = oracleBox.tokens(0)._1 == oracleNFT
+       |
+       |    val validRateForRedeemingLp = validOracleBox && oracleRateXy > lpRateXyIn * 98 / 100 // lpRate must be >= 0.98 * oracleRate // these parameters need to be tweaked
+       |
+       |    // Note:
+       |    //    supplyLpIn = initialLp - lpReservesIn._2
+       |    //    supplyLpOut = initialLp - lpReservesOut._2
+       |    // Thus:
+       |    //    deltaSupplyLp = supplyLpOut - supplyLpIn
+       |    //                  = (initialLp - lpReservesOut._2) - (initialLp - lpReservesIn._2)
+       |    //                  = lpReservesIn._2 - lpReservesOut._2
+       |
+       |    val deltaSupplyLp  = lpReservesIn._2 - lpReservesOut._2
+       |    val deltaReservesX = reservesXOut - reservesXIn
+       |    val deltaReservesY = reservesYOut - reservesYIn
+       |
+       |    val validRedemption = deltaSupplyLp < 0 && deltaReservesX < 0 && deltaReservesY < 0 && {
+       |        val _deltaSupplyLp = deltaSupplyLp.toBigInt
+       |        // note: _deltaSupplyLp, deltaReservesX and deltaReservesY are negative
+       |        deltaReservesX.toBigInt * supplyLpIn >= _deltaSupplyLp * reservesXIn && deltaReservesY.toBigInt * supplyLpIn >= _deltaSupplyLp * reservesYIn
+       |    } && validRateForRedeemingLp
+       |
+       |    val selfPreserved = successor.propositionBytes == SELF.propositionBytes  &&
+       |                        successor.value >= SELF.value                        &&
+       |                        successor.tokens == SELF.tokens
+       |
+       |    sigmaProp(validRedemption && selfPreserved)
        |}
        |""".stripMargin
 
@@ -785,7 +924,10 @@ object DexySpec {
        |  // 0 LP            |  LP            |   Oracle
        |  // 1 Bank          |  Bank          |   Tracking (98%)
        |  // 2 Intervention  |  Intervention  |   
-       |  
+       |
+       |  // Oracle data:
+       |  // R4 of the oracle contains the rate "nanoErgs per USD" in Long format
+       |
        |  // inputs indices
        |  val lpInIndex = 0
        |  val bankInIndex = 1
@@ -831,8 +973,8 @@ object DexySpec {
        |  val lpReservesXOut = lpBoxOut.value
        |  val lpReservesYOut = lpTokenYOut._2
        |  
-       |  val lpRateXyInTimesLpReservesYIn  = lpReservesXIn.toBigInt   // we can assume that reservesYIn > 0 (since at least one token must exist)
-       |  val lpRateXyOutTimesLpReservesYOut  = lpReservesXOut.toBigInt  // we can assume that reservesYOut > 0 (since at least one token must exist)
+       |  val lpRateXyInTimesLpReservesYIn = lpReservesXIn.toBigInt   // we can assume that reservesYIn > 0 (since at least one token must exist)
+       |  val lpRateXyOutTimesLpReservesYOut = lpReservesXOut.toBigInt  // we can assume that reservesYOut > 0 (since at least one token must exist)
        |  
        |  val oracleRateXy = oracleBox.R4[Long].get.toBigInt
        |   
@@ -864,13 +1006,11 @@ object DexySpec {
        |  
        |  val validTracking = trackingHeight < HEIGHT - T_int // at least T_int blocks have passed since the tracking started
        |                  
-       |  val lpRateXyOutTimesLpReservesYOutTimes100 = lpRateXyOutTimesLpReservesYOut * 100
-       |
-       |  val validAmount = lpRateXyOutTimesLpReservesYOutTimes100 >= oracleRateXy * lpReservesYOut * 105 && // new rate must be >= 1.05 times oracle rate
-       |                    lpRateXyOutTimesLpReservesYOutTimes100 <= oracleRateXy * lpReservesYOut * 110    // new rate must be <= 1.1 times oracle rate
+       |  val validAmount = lpRateXyOutTimesLpReservesYOut * 1000 <= oracleRateXy * lpReservesYOut * 995    // new rate must be <= 99.5 times oracle rate
        |
        |  val validDeltas = deltaBankErgs <= deltaLpX  &&  // ergs reduced in bank box must be <= ergs gained in LP
-       |                    deltaBankTokens >= deltaLpY    // tokens gained in bank box must be >= tokens reduced in LP
+       |                    deltaBankTokens >= deltaLpY &&   // tokens gained in bank box must be >= tokens reduced in LP
+       |                    deltaLpX > 0
        |
        |  val validSwap = validAmount      &&
        |                  validDeltas      &&
@@ -903,7 +1043,7 @@ object DexySpec {
         |    // [1] Extract to future
         |    //   Input         |  Output        |   Data-Input 
         |    // -----------------------------------------------
-        |    // 0 LP            |  LP            |   Oracle (unused here)
+        |    // 0 LP            |  LP            |   Oracle
         |    // 1 Extract       |  Extract       |   Bank   (to check that bank is empty)
         |    // 2               |                |   Tracking (95%)
         |    // 
@@ -916,7 +1056,10 @@ object DexySpec {
         |    // ToDo: verify following
         |    //   cannot change prop bytes for LP, Extract and Tracking box
         |    //   cannot change tokens/nanoErgs in LP, extract and tracking box except what is permitted
-        |    
+        |
+        |    // Oracle data:
+        |    // R4 of the oracle contains the rate "nanoErgs per USD" in Long format
+        |
         |    val lpBoxInIndex = 0
         |    val lpBoxOutIndex = 0
         |    
@@ -1017,7 +1160,7 @@ object DexySpec {
         |                        validTracking101Box
         |                        // ToDo: do we need to check that input ratio is > 101%? (its already checked in tracker)
         |                         
-        |    sigmaProp(validSuccessor && validDelay && validLpBox && (validExtract || validRelease))
+        |    sigmaProp(validSuccessor && validDelay && validLpBox && validOracleBox && (validExtract || validRelease))
         |}
         |""".stripMargin
 
@@ -1031,6 +1174,12 @@ object DexySpec {
   val payoutAddress = getStringFromAddress(getAddressFromErgoTree(payoutErgoTree))
   val lpErgoTree = ScriptUtil.compile(Map(), lpScript)
   val lpAddress = getStringFromAddress(getAddressFromErgoTree(lpErgoTree))
+  val lpSwapErgoTree = ScriptUtil.compile(Map(), lpSwapScript)
+  val lpSwapAddress = getStringFromAddress(getAddressFromErgoTree(lpSwapErgoTree))
+  val lpMintErgoTree = ScriptUtil.compile(Map(), lpMintScript)
+  val lpMintAddress = getStringFromAddress(getAddressFromErgoTree(lpMintErgoTree))
+  val lpRedeemErgoTree = ScriptUtil.compile(Map(), lpRedeemScript)
+  val lpRedeemAddress = getStringFromAddress(getAddressFromErgoTree(lpRedeemErgoTree))
   val trackingErgoTree = ScriptUtil.compile(Map(), trackingScript)
   val trackingAddress = getStringFromAddress(getAddressFromErgoTree(trackingErgoTree))
   val extractErgoTree = ScriptUtil.compile(Map(), extractScript)
@@ -1057,6 +1206,18 @@ object DexySpec {
 
     println(s"LP: $lpAddress")
     println(lpScript)
+    println()
+
+    println(s"LP Swap: $lpSwapAddress")
+    println(lpSwapScript)
+    println()
+
+    println(s"LP Mint: $lpMintAddress")
+    println(lpMintScript)
+    println()
+
+    println(s"LP Redeem: $lpRedeemAddress")
+    println(lpRedeemScript)
     println()
 
     println(s"Tracking: $trackingAddress")

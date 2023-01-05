@@ -9,7 +9,6 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 // Test Lp contracts for following path
 // Swap Erg and Dexy tokens using constant product formula after taking fee into account
-// ToDo: Check if any edge-cases remain and add tests for them
 class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyChecks with HttpClientTesting {
   val lpToken = "4b2d8b7beb3eaac8234d9e61792d270898a43934d6a27275e4f3a044609c9f2a" // LP tokens
   val dexyUSD = "4b2d8b7beb3eaac8234d9e61792d270898a43934d6a27275e4f3a044609c9f2b" // Dexy token
@@ -29,7 +28,6 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
   val changeAddress = "9gQqZyxyjAptMbfW1Gydm3qaap11zd6X9DrABwgEE9eRdRvd27p"
 
   property("Swap (sell Ergs) should work") {
-    val oracleRateXy = 10000L
     val lpBalance = 100000000L
     val reservesXIn = 1000000000000L
     val reservesYIn = 100000000L
@@ -58,26 +56,6 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
 
-      val dummyBox = // ToDo: see if this can be removed
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(dummyNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId5, fakeIndex)
-
-      val oracleBox =
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(minStorageRent)
-          .tokens(new ErgoToken(oracleNFT, 1))
-          .registers(KioskLong(oracleRateXy).getErgoValue)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId2, fakeIndex)
-
       val lpBox =
         ctx
           .newTxBuilder()
@@ -86,6 +64,16 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalance), new ErgoToken(dexyUSD, reservesYIn))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
           .build()
+          .convertToInputWith(fakeTxId2, fakeIndex)
+
+      val swapBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpSwapNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpSwapScript))
+          .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
 
       val validLpOutBox = KioskBox(
@@ -93,6 +81,13 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
         reservesXOut,
         registers = Array(),
         tokens = Array((lpNFT, 1), (lpToken, lpBalance), (dexyUSD, reservesYOut))
+      )
+
+      val validSwapOutBox = KioskBox(
+        lpSwapAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpSwapNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -104,8 +99,8 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
 
       // all ok, swap should work
       noException shouldBe thrownBy {
-        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
-          Array(validLpOutBox, dummyOutputBox),
+        TxUtil.createTx(Array(lpBox, swapBox, fundingBox), Array(),
+          Array(validLpOutBox, validSwapOutBox, dummyOutputBox),
           fee = 1000000L,
           changeAddress,
           Array[String](),
@@ -117,7 +112,6 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
   }
 
   property("Swap (sell Ergs) should fail if Lp address changed") {
-    val oracleRateXy = 10000L
     val lpBalance = 100000000L
     val reservesXIn = 1000000000000L
     val reservesYIn = 100000000L
@@ -146,26 +140,6 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
 
-      val dummyBox = // ToDo: see if this can be removed
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(dummyNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId5, fakeIndex)
-
-      val oracleBox =
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(minStorageRent)
-          .tokens(new ErgoToken(oracleNFT, 1))
-          .registers(KioskLong(oracleRateXy).getErgoValue)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId2, fakeIndex)
-
       val lpBox =
         ctx
           .newTxBuilder()
@@ -173,6 +147,16 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .value(reservesXIn)
           .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalance), new ErgoToken(dexyUSD, reservesYIn))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
+          .build()
+          .convertToInputWith(fakeTxId2, fakeIndex)
+
+      val swapBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpSwapNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpSwapScript))
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
 
@@ -183,6 +167,13 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
         tokens = Array((lpNFT, 1), (lpToken, lpBalance), (dexyUSD, reservesYOut))
       )
 
+      val validSwapOutBox = KioskBox(
+        lpSwapAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpSwapNFT, 1))
+      )
+
       val dummyOutputBox = KioskBox(
         changeAddress,
         dummyNanoErgs,
@@ -191,8 +182,8 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
       )
 
       the[Exception] thrownBy {
-        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
-          Array(validLpOutBox, dummyOutputBox),
+        TxUtil.createTx(Array(lpBox, swapBox, fundingBox), Array(),
+          Array(validLpOutBox, validSwapOutBox, dummyOutputBox),
           fee = 1000000L,
           changeAddress,
           Array[String](),
@@ -203,98 +194,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
     }
   }
 
-  property("Swap (sell Ergs) should work irrespective of oracle rate") {
-    val lpInCirc = 10000L
-    val oracleRateXy = 0L // set oracle rate to 0
-    val lpBalance = 100000000L
-    val reservesXIn = 1000000000000L
-    val reservesYIn = 100000000L
-
-    val rate = reservesYIn.toDouble / reservesXIn
-    val sellX = 10000000L
-    val buyY = (sellX * rate * (feeDenomLp - feeNumLp) / feeDenomLp).toLong
-    assert(buyY == 997)
-
-    val reservesXOut = reservesXIn + sellX
-    val reservesYOut = reservesYIn - buyY
-
-    val deltaReservesX = reservesXOut - reservesXIn
-    val deltaReservesY = reservesYOut - reservesYIn
-
-    assert(BigInt(deltaReservesY) * reservesXIn * feeDenomLp >= BigInt(deltaReservesX) * (feeNumLp - feeDenomLp) * reservesYIn)
-
-    ergoClient.execute { implicit ctx: BlockchainContext =>
-
-      val fundingBox =
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(fakeNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId1, fakeIndex)
-
-      val dummyBox = // ToDo: see if this can be removed
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(dummyNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId5, fakeIndex)
-
-      val oracleBox =
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(minStorageRent)
-          .tokens(new ErgoToken(oracleNFT, 1))
-          .registers(KioskLong(oracleRateXy).getErgoValue)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId2, fakeIndex)
-
-      val lpBox =
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(reservesXIn)
-          .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalance), new ErgoToken(dexyUSD, reservesYIn))
-          .registers(KioskLong(lpInCirc).getErgoValue)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
-          .build()
-          .convertToInputWith(fakeTxId3, fakeIndex)
-
-      val validLpOutBox = KioskBox(
-        lpAddress,
-        reservesXOut,
-        registers = Array(KioskLong(lpInCirc)),
-        tokens = Array((lpNFT, 1), (lpToken, lpBalance), (dexyUSD, reservesYOut))
-      )
-
-      val dummyOutputBox = KioskBox(
-        changeAddress,
-        dummyNanoErgs,
-        registers = Array(),
-        tokens = Array((dexyUSD, buyY))
-      )
-
-      // all ok, swap should work
-      noException shouldBe thrownBy {
-        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
-          Array(validLpOutBox, dummyOutputBox),
-          fee = 1000000L,
-          changeAddress,
-          Array[String](),
-          Array[DhtData](),
-          false
-        )
-      }
-    }
-  }
-
   property("Swap (sell Ergs) should not work if more Dexy taken") {
-    val oracleRateXy = 10000L
     val lpBalance = 100000000L
     val reservesXIn = 1000000000000L
     val reservesYIn = 100000000L
@@ -323,26 +223,6 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
 
-      val dummyBox = // ToDo: see if this can be removed
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(dummyNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId5, fakeIndex)
-
-      val oracleBox =
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(minStorageRent)
-          .tokens(new ErgoToken(oracleNFT, 1))
-          .registers(KioskLong(oracleRateXy).getErgoValue)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId2, fakeIndex)
-
       val lpBox =
         ctx
           .newTxBuilder()
@@ -350,6 +230,16 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .value(reservesXIn)
           .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalance), new ErgoToken(dexyUSD, reservesYIn))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
+          .build()
+          .convertToInputWith(fakeTxId2, fakeIndex)
+
+      val swapBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpSwapNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpSwapScript))
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
 
@@ -360,6 +250,13 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
         tokens = Array((lpNFT, 1), (lpToken, lpBalance), (dexyUSD, reservesYOut))
       )
 
+      val validSwapOutBox = KioskBox(
+        lpSwapAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpSwapNFT, 1))
+      )
+
       val dummyOutputBox = KioskBox(
         changeAddress,
         dummyNanoErgs,
@@ -368,8 +265,8 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
       )
 
       an[Exception] shouldBe thrownBy {
-        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
-          Array(validLpOutBox, dummyOutputBox),
+        TxUtil.createTx(Array(lpBox, swapBox, fundingBox), Array(),
+          Array(validLpOutBox, validSwapOutBox, dummyOutputBox),
           fee = 1000000L,
           changeAddress,
           Array[String](),
@@ -381,7 +278,6 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
   }
 
   property("Swap (sell Dexy) should work") {
-    val oracleRateXy = 10000L
     val lpBalance = 100000000L
     val reservesXIn = 1000000000000L
     val reservesYIn = 100000000L
@@ -406,30 +302,10 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .newTxBuilder()
           .outBoxBuilder
           .value(fakeNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId1, fakeIndex)
-
-      val dummyBox = // ToDo: see if this can be removed
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(dummyNanoErgs)
           .tokens(new ErgoToken(dexyUSD, sellY))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
           .build()
-          .convertToInputWith(fakeTxId5, fakeIndex)
-
-      val oracleBox =
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(minStorageRent)
-          .tokens(new ErgoToken(oracleNFT, 1))
-          .registers(KioskLong(oracleRateXy).getErgoValue)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId2, fakeIndex)
+          .convertToInputWith(fakeTxId1, fakeIndex)
 
       val lpBox =
         ctx
@@ -439,6 +315,16 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalance), new ErgoToken(dexyUSD, reservesYIn))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
           .build()
+          .convertToInputWith(fakeTxId2, fakeIndex)
+
+      val swapBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpSwapNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpSwapScript))
+          .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
 
       val validLpOutBox = KioskBox(
@@ -446,6 +332,13 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
         reservesXOut,
         registers = Array(),
         tokens = Array((lpNFT, 1), (lpToken, lpBalance), (dexyUSD, reservesYOut))
+      )
+
+      val validSwapOutBox = KioskBox(
+        lpSwapAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpSwapNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -457,8 +350,8 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
 
       // all ok, swap should work
       noException shouldBe thrownBy {
-        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
-          Array(validLpOutBox, dummyOutputBox),
+        TxUtil.createTx(Array(lpBox, swapBox, fundingBox), Array(),
+          Array(validLpOutBox, validSwapOutBox, dummyOutputBox),
           fee = 1000000L,
           changeAddress,
           Array[String](),
@@ -470,7 +363,6 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
   }
 
   property("Swap (sell Dexy) should not work if more Ergs taken") {
-    val oracleRateXy = 10000L
     val lpBalance = 100000000L
     val reservesXIn = 1000000000000L
     val reservesYIn = 100000000L
@@ -495,30 +387,10 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .newTxBuilder()
           .outBoxBuilder
           .value(fakeNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId1, fakeIndex)
-
-      val dummyBox = // ToDo: see if this can be removed
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(dummyNanoErgs)
           .tokens(new ErgoToken(dexyUSD, sellY))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
           .build()
-          .convertToInputWith(fakeTxId5, fakeIndex)
-
-      val oracleBox =
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(minStorageRent)
-          .tokens(new ErgoToken(oracleNFT, 1))
-          .registers(KioskLong(oracleRateXy).getErgoValue)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId2, fakeIndex)
+          .convertToInputWith(fakeTxId1, fakeIndex)
 
       val lpBox =
         ctx
@@ -527,6 +399,16 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .value(reservesXIn)
           .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalance), new ErgoToken(dexyUSD, reservesYIn))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
+          .build()
+          .convertToInputWith(fakeTxId2, fakeIndex)
+
+      val swapBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpSwapNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpSwapScript))
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
 
@@ -537,6 +419,13 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
         tokens = Array((lpNFT, 1), (lpToken, lpBalance), (dexyUSD, reservesYOut))
       )
 
+      val validSwapOutBox = KioskBox(
+        lpSwapAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpSwapNFT, 1))
+      )
+
       val dummyOutputBox = KioskBox(
         changeAddress,
         dummyNanoErgs - deltaReservesX,
@@ -545,8 +434,8 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
       )
 
       an[Exception] shouldBe thrownBy {
-        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
-          Array(validLpOutBox, dummyOutputBox),
+        TxUtil.createTx(Array(lpBox, swapBox, fundingBox), Array(),
+          Array(validLpOutBox, validSwapOutBox, dummyOutputBox),
           fee = 1000000L,
           changeAddress,
           Array[String](),
@@ -558,7 +447,6 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
   }
 
   property("No change should work") {
-    val oracleRateXy = 10000L
     val lpBalance = 100000000L
     val reservesXIn = 1000000000000L
     val reservesYIn = 100000000L
@@ -577,26 +465,6 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
 
-      val dummyBox = // ToDo: see if this can be removed
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(dummyNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId5, fakeIndex)
-
-      val oracleBox =
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(minStorageRent)
-          .tokens(new ErgoToken(oracleNFT, 1))
-          .registers(KioskLong(oracleRateXy).getErgoValue)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId2, fakeIndex)
-
       val lpBox =
         ctx
           .newTxBuilder()
@@ -604,6 +472,16 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .value(reservesXIn)
           .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalance), new ErgoToken(dexyUSD, reservesYIn))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
+          .build()
+          .convertToInputWith(fakeTxId2, fakeIndex)
+
+      val swapBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpSwapNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpSwapScript))
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
 
@@ -614,17 +492,17 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
         tokens = Array((lpNFT, 1), (lpToken, lpBalance), (dexyUSD, reservesYOut))
       )
 
-      val dummyOutputBox = KioskBox(
-        changeAddress,
-        dummyNanoErgs,
+      val validSwapOutBox = KioskBox(
+        lpSwapAddress,
+        minStorageRent,
         registers = Array(),
-        tokens = Array()
+        tokens = Array((lpSwapNFT, 1))
       )
 
       // all ok, swap should work
       noException shouldBe thrownBy {
-        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
-          Array(validLpOutBox, dummyOutputBox),
+        TxUtil.createTx(Array(lpBox, swapBox, fundingBox), Array(),
+          Array(validLpOutBox, validSwapOutBox),
           fee = 1000000L,
           changeAddress,
           Array[String](),

@@ -55,15 +55,6 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
 
-      val dummyBox = // ToDo: see if this can be removed
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(dummyNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId5, fakeIndex)
-
       val oracleBox =
         ctx
           .newTxBuilder()
@@ -85,11 +76,28 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
 
+      val redeemBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpRedeemNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpRedeemScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
       val validLpOutBox = KioskBox(
         lpAddress,
         reservesXOut,
         registers = Array(),
         tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, reservesYOut))
+      )
+
+      val validRedeemOutBox = KioskBox(
+        lpRedeemAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpRedeemNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -101,8 +109,8 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
 
       // all ok, redeem should work
       noException shouldBe thrownBy {
-        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
-          Array(validLpOutBox, dummyOutputBox),
+        TxUtil.createTx(Array(lpBox, redeemBox, fundingBox), Array(oracleBox),
+          Array(validLpOutBox, validRedeemOutBox, dummyOutputBox),
           fee = 1000000L,
           changeAddress,
           Array[String](),
@@ -113,7 +121,7 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
     }
   }
 
-  property("Redeem Lp should work fail if Lp address changed") {
+  property("Redeem Lp should fail if Lp address changed") {
     val oracleRateXy = 10000L
     val lpBalanceIn = 100000000L
 
@@ -141,15 +149,6 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
 
-      val dummyBox = // ToDo: see if this can be removed
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(dummyNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId5, fakeIndex)
-
       val oracleBox =
         ctx
           .newTxBuilder()
@@ -171,11 +170,28 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
 
+      val redeemBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpRedeemNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpRedeemScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
       val validLpOutBox = KioskBox(
         changeAddress,  // <--------------- this value is changed
         reservesXOut,
         registers = Array(),
         tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, reservesYOut))
+      )
+
+      val validRedeemOutBox = KioskBox(
+        lpRedeemAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpRedeemNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -186,8 +202,8 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
       )
 
       the[Exception] thrownBy {
-        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
-          Array(validLpOutBox, dummyOutputBox),
+        TxUtil.createTx(Array(lpBox, redeemBox, fundingBox), Array(oracleBox),
+          Array(validLpOutBox, validRedeemOutBox, dummyOutputBox),
           fee = 1000000L,
           changeAddress,
           Array[String](),
@@ -226,15 +242,6 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
 
-      val dummyBox = // ToDo: see if this can be removed
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(dummyNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId5, fakeIndex)
-
       val oracleBox =
         ctx
           .newTxBuilder()
@@ -256,11 +263,28 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
 
+      val redeemBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpRedeemNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpRedeemScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
       val validLpOutBox = KioskBox(
         lpAddress,
         reservesXOut,
         registers = Array(),
         tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, reservesYOut))
+      )
+
+      val validRedeemOutBox = KioskBox(
+        lpRedeemAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpRedeemNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -271,8 +295,8 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
       )
 
       an[Exception] shouldBe thrownBy {
-        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
-          Array(validLpOutBox, dummyOutputBox),
+        TxUtil.createTx(Array(lpBox, redeemBox, fundingBox), Array(oracleBox),
+          Array(validLpOutBox, validRedeemOutBox, dummyOutputBox),
           fee = 1000000L,
           changeAddress,
           Array[String](),
@@ -311,15 +335,6 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
 
-      val dummyBox = // ToDo: see if this can be removed
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(dummyNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId5, fakeIndex)
-
       val oracleBox =
         ctx
           .newTxBuilder()
@@ -341,11 +356,28 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
 
+      val redeemBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpRedeemNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpRedeemScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
       val validLpOutBox = KioskBox(
         lpAddress,
         reservesXOut,
         registers = Array(),
         tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, reservesYOut))
+      )
+
+      val validRedeemOutBox = KioskBox(
+        lpRedeemAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpRedeemNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -356,8 +388,8 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
       )
 
       an[Exception] shouldBe thrownBy {
-        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
-          Array(validLpOutBox, dummyOutputBox),
+        TxUtil.createTx(Array(lpBox, redeemBox, fundingBox), Array(oracleBox),
+          Array(validLpOutBox, validRedeemOutBox, dummyOutputBox),
           fee = 1000000L,
           changeAddress,
           Array[String](),
@@ -396,15 +428,6 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
 
-      val dummyBox = // ToDo: see if this can be removed
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(dummyNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId5, fakeIndex)
-
       val oracleBox =
         ctx
           .newTxBuilder()
@@ -426,11 +449,28 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
 
+      val redeemBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpRedeemNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpRedeemScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
       val validLpOutBox = KioskBox(
         lpAddress,
         reservesXOut,
         registers = Array(),
         tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, reservesYOut))
+      )
+
+      val validRedeemOutBox = KioskBox(
+        lpRedeemAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpRedeemNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -441,8 +481,8 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
       )
 
       an[Exception] shouldBe thrownBy {
-        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
-          Array(validLpOutBox, dummyOutputBox),
+        TxUtil.createTx(Array(lpBox, redeemBox, fundingBox), Array(oracleBox),
+          Array(validLpOutBox, validRedeemOutBox, dummyOutputBox),
           fee = 1000000L,
           changeAddress,
           Array[String](),
@@ -481,15 +521,6 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
 
-      val dummyBox = // ToDo: see if this can be removed
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(dummyNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId5, fakeIndex)
-
       val oracleBox =
         ctx
           .newTxBuilder()
@@ -511,11 +542,28 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
 
+      val redeemBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpRedeemNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpRedeemScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
       val validLpOutBox = KioskBox(
         lpAddress,
         reservesXOut,
         registers = Array(),
         tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, reservesYOut))
+      )
+
+      val validRedeemOutBox = KioskBox(
+        lpRedeemAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpRedeemNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -526,8 +574,8 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
       )
 
       an[Exception] shouldBe thrownBy {
-        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
-          Array(validLpOutBox, dummyOutputBox),
+        TxUtil.createTx(Array(lpBox, redeemBox, fundingBox), Array(oracleBox),
+          Array(validLpOutBox, validRedeemOutBox, dummyOutputBox),
           fee = 1000000L,
           changeAddress,
           Array[String](),
@@ -566,15 +614,6 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
 
-      val dummyBox = // ToDo: see if this can be removed
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(dummyNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId5, fakeIndex)
-
       val oracleBox =
         ctx
           .newTxBuilder()
@@ -596,11 +635,28 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
 
+      val redeemBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpRedeemNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpRedeemScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
       val validLpOutBox = KioskBox(
         lpAddress,
         reservesXOut,
         registers = Array(),
         tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, reservesYOut))
+      )
+
+      val validRedeemOutBox = KioskBox(
+        lpRedeemAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpRedeemNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -611,8 +667,8 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
       )
 
       an[Exception] shouldBe thrownBy {
-        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
-          Array(validLpOutBox, dummyOutputBox),
+        TxUtil.createTx(Array(lpBox, redeemBox, fundingBox), Array(oracleBox),
+          Array(validLpOutBox, validRedeemOutBox, dummyOutputBox),
           fee = 1000000L,
           changeAddress,
           Array[String](),
@@ -651,15 +707,6 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
 
-      val dummyBox = // ToDo: see if this can be removed
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(dummyNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId5, fakeIndex)
-
       val oracleBox =
         ctx
           .newTxBuilder()
@@ -681,11 +728,28 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
 
+      val redeemBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpRedeemNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpRedeemScript))
+          .build()
+          .convertToInputWith(fakeTxId4, fakeIndex)
+
       val validLpOutBox = KioskBox(
         lpAddress,
         reservesXOut,
         registers = Array(),
         tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, reservesYOut))
+      )
+
+      val validRedeemOutBox = KioskBox(
+        lpRedeemAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpRedeemNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -696,8 +760,8 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
       )
 
       an[Exception] shouldBe thrownBy {
-        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
-          Array(validLpOutBox, dummyOutputBox),
+        TxUtil.createTx(Array(lpBox, redeemBox, fundingBox), Array(oracleBox),
+          Array(validLpOutBox, validRedeemOutBox, dummyOutputBox),
           fee = 1000000L,
           changeAddress,
           Array[String](),
