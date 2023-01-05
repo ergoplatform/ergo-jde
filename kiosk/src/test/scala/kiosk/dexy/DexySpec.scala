@@ -14,9 +14,9 @@ object DexySpec {
   val interventionNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val extractionNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A54" // TODO replace with actual
   val payoutNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A52" // TODO replace with actual
-  val swapNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A51" // TODO replace with actual
-  val mintNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A50" // TODO replace with actual
-  val redeemNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A59" // TODO replace with actual
+  val lpSwapNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A51" // TODO replace with actual
+  val lpMintNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A50" // TODO replace with actual
+  val lpRedeemNFT = "161A3A5250655368566D597133743677397A24432646294A404D635166546A59" // TODO replace with actual
 
   val freeMintNFT = "061A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
   val arbitrageMintNFT = "961A3A5250655368566D597133743677397A24432646294A404D635166546A57" // TODO replace with actual
@@ -510,9 +510,9 @@ object DexySpec {
        |
        |    val interventionNFT = fromBase64("${Base64.encode(interventionNFT.decodeHex)}")
        |    val extractionNFT = fromBase64("${Base64.encode(extractionNFT.decodeHex)}")
-       |    val swapNFT = fromBase64("${Base64.encode(swapNFT.decodeHex)}")
-       |    val mintNFT = fromBase64("${Base64.encode(mintNFT.decodeHex)}")
-       |    val redeemNFT = fromBase64("${Base64.encode(redeemNFT.decodeHex)}")
+       |    val swapNFT = fromBase64("${Base64.encode(lpSwapNFT.decodeHex)}")
+       |    val mintNFT = fromBase64("${Base64.encode(lpMintNFT.decodeHex)}")
+       |    val redeemNFT = fromBase64("${Base64.encode(lpRedeemNFT.decodeHex)}")
        |
        |    val interventionBox = INPUTS(interventionBoxIndex)
        |    val extractBox = INPUTS(extractBoxIndex)
@@ -973,8 +973,8 @@ object DexySpec {
        |  val lpReservesXOut = lpBoxOut.value
        |  val lpReservesYOut = lpTokenYOut._2
        |  
-       |  val lpRateXyInTimesLpReservesYIn  = lpReservesXIn.toBigInt   // we can assume that reservesYIn > 0 (since at least one token must exist)
-       |  val lpRateXyOutTimesLpReservesYOut  = lpReservesXOut.toBigInt  // we can assume that reservesYOut > 0 (since at least one token must exist)
+       |  val lpRateXyInTimesLpReservesYIn = lpReservesXIn.toBigInt   // we can assume that reservesYIn > 0 (since at least one token must exist)
+       |  val lpRateXyOutTimesLpReservesYOut = lpReservesXOut.toBigInt  // we can assume that reservesYOut > 0 (since at least one token must exist)
        |  
        |  val oracleRateXy = oracleBox.R4[Long].get.toBigInt
        |   
@@ -1006,12 +1006,11 @@ object DexySpec {
        |  
        |  val validTracking = trackingHeight < HEIGHT - T_int // at least T_int blocks have passed since the tracking started
        |                  
-       |  val lpRateXyOutTimesLpReservesYOutTimes1000 = lpRateXyOutTimesLpReservesYOut * 1000
-       |
        |  val validAmount = lpRateXyOutTimesLpReservesYOut * 1000 <= oracleRateXy * lpReservesYOut * 995    // new rate must be <= 99.5 times oracle rate
        |
        |  val validDeltas = deltaBankErgs <= deltaLpX  &&  // ergs reduced in bank box must be <= ergs gained in LP
-       |                    deltaBankTokens >= deltaLpY    // tokens gained in bank box must be >= tokens reduced in LP
+       |                    deltaBankTokens >= deltaLpY &&   // tokens gained in bank box must be >= tokens reduced in LP
+       |                    deltaLpX > 0
        |
        |  val validSwap = validAmount      &&
        |                  validDeltas      &&

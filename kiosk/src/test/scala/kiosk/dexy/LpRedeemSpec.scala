@@ -81,7 +81,7 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
-          .tokens(new ErgoToken(redeemNFT, 1))
+          .tokens(new ErgoToken(lpRedeemNFT, 1))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), lpRedeemScript))
           .build()
           .convertToInputWith(fakeTxId4, fakeIndex)
@@ -97,7 +97,7 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
         lpRedeemAddress,
         minStorageRent,
         registers = Array(),
-        tokens = Array((redeemNFT, 1))
+        tokens = Array((lpRedeemNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -175,7 +175,7 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
-          .tokens(new ErgoToken(redeemNFT, 1))
+          .tokens(new ErgoToken(lpRedeemNFT, 1))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), lpRedeemScript))
           .build()
           .convertToInputWith(fakeTxId4, fakeIndex)
@@ -191,7 +191,7 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
         lpRedeemAddress,
         minStorageRent,
         registers = Array(),
-        tokens = Array((redeemNFT, 1))
+        tokens = Array((lpRedeemNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -268,7 +268,7 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
-          .tokens(new ErgoToken(redeemNFT, 1))
+          .tokens(new ErgoToken(lpRedeemNFT, 1))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), lpRedeemScript))
           .build()
           .convertToInputWith(fakeTxId4, fakeIndex)
@@ -284,7 +284,7 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
         lpRedeemAddress,
         minStorageRent,
         registers = Array(),
-        tokens = Array((redeemNFT, 1))
+        tokens = Array((lpRedeemNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -361,7 +361,7 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
-          .tokens(new ErgoToken(redeemNFT, 1))
+          .tokens(new ErgoToken(lpRedeemNFT, 1))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), lpRedeemScript))
           .build()
           .convertToInputWith(fakeTxId4, fakeIndex)
@@ -377,7 +377,7 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
         lpRedeemAddress,
         minStorageRent,
         registers = Array(),
-        tokens = Array((redeemNFT, 1))
+        tokens = Array((lpRedeemNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -454,7 +454,7 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
-          .tokens(new ErgoToken(redeemNFT, 1))
+          .tokens(new ErgoToken(lpRedeemNFT, 1))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), lpRedeemScript))
           .build()
           .convertToInputWith(fakeTxId4, fakeIndex)
@@ -470,7 +470,7 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
         lpRedeemAddress,
         minStorageRent,
         registers = Array(),
-        tokens = Array((redeemNFT, 1))
+        tokens = Array((lpRedeemNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -547,7 +547,7 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
-          .tokens(new ErgoToken(redeemNFT, 1))
+          .tokens(new ErgoToken(lpRedeemNFT, 1))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), lpRedeemScript))
           .build()
           .convertToInputWith(fakeTxId4, fakeIndex)
@@ -563,7 +563,7 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
         lpRedeemAddress,
         minStorageRent,
         registers = Array(),
-        tokens = Array((redeemNFT, 1))
+        tokens = Array((lpRedeemNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -640,7 +640,7 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
-          .tokens(new ErgoToken(redeemNFT, 1))
+          .tokens(new ErgoToken(lpRedeemNFT, 1))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), lpRedeemScript))
           .build()
           .convertToInputWith(fakeTxId4, fakeIndex)
@@ -656,7 +656,7 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
         lpRedeemAddress,
         minStorageRent,
         registers = Array(),
-        tokens = Array((redeemNFT, 1))
+        tokens = Array((lpRedeemNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -733,7 +733,7 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
-          .tokens(new ErgoToken(redeemNFT, 1))
+          .tokens(new ErgoToken(lpRedeemNFT, 1))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), lpRedeemScript))
           .build()
           .convertToInputWith(fakeTxId4, fakeIndex)
@@ -749,7 +749,7 @@ class LpRedeemSpec  extends PropSpec with Matchers with ScalaCheckDrivenProperty
         lpRedeemAddress,
         minStorageRent,
         registers = Array(),
-        tokens = Array((redeemNFT, 1))
+        tokens = Array((lpRedeemNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(

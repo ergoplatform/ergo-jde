@@ -28,7 +28,6 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
   val changeAddress = "9gQqZyxyjAptMbfW1Gydm3qaap11zd6X9DrABwgEE9eRdRvd27p"
 
   property("Mint Lp (deposit Ergs and Dexy) should work") {
-    val oracleRateXy = 10000L
     val lpBalanceIn = 100000000L
 
     val reservesXIn = 1000000000000L
@@ -65,26 +64,6 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
 
-      val dummyBox = // ToDo: see if this can be removed
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(dummyNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId5, fakeIndex)
-
-      val oracleBox =
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(minStorageRent)
-          .tokens(new ErgoToken(oracleNFT, 1))
-          .registers(KioskLong(oracleRateXy).getErgoValue)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId2, fakeIndex)
-
       val lpBox =
         ctx
           .newTxBuilder()
@@ -95,11 +74,28 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
 
+      val lpMintBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpMintNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpMintScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
       val validLpOutBox = KioskBox(
         lpAddress,
         reservesXOut,
         registers = Array(),
         tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, reservesYOut))
+      )
+
+      val validLpMintOutBox = KioskBox(
+        lpMintAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpMintNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -111,8 +107,98 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
 
       // all ok, mint should work
       noException shouldBe thrownBy {
-        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
-          Array(validLpOutBox, dummyOutputBox),
+        TxUtil.createTx(Array(lpBox, lpMintBox, fundingBox), Array(),
+          Array(validLpOutBox, validLpMintOutBox, dummyOutputBox),
+          fee = 1000000L,
+          changeAddress,
+          Array[String](),
+          Array[DhtData](),
+          false
+        )
+      }
+    }
+  }
+
+  property("Mint Lp should fail if more LP taken") {
+    val lpBalanceIn = 100000000L
+
+    val reservesXIn = 1000000000000L
+    val reservesYIn = 100000000L
+
+    val depositX = 500000L
+    val depositY = 50L
+
+    val reservesXOut = reservesXIn + depositX
+    val reservesYOut = reservesYIn + depositY
+
+    val deltaReservesX = depositX
+    val deltaReservesY = depositY
+
+    val supplyLpIn = initialLp - lpBalanceIn
+
+    val sharesUnlockedX = BigInt(deltaReservesX) * supplyLpIn / reservesXIn
+    val sharesUnlockedY = BigInt(deltaReservesY) * supplyLpIn / reservesYIn
+    val sharesUnlocked = sharesUnlockedX.min(sharesUnlockedY) + 1 // one extra LP unlocked
+
+    val lpBalanceOut = lpBalanceIn - sharesUnlocked.toLong
+
+    ergoClient.execute { implicit ctx: BlockchainContext =>
+
+      val fundingBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(fakeNanoErgs)
+          .tokens(new ErgoToken(dexyUSD, depositY))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId1, fakeIndex)
+
+      val lpBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(reservesXIn)
+          .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalanceIn), new ErgoToken(dexyUSD, reservesYIn))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
+      val lpMintBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpMintNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpMintScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
+      val validLpOutBox = KioskBox(
+        lpAddress,
+        reservesXOut,
+        registers = Array(),
+        tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, reservesYOut))
+      )
+
+      val validLpMintOutBox = KioskBox(
+        lpMintAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpMintNFT, 1))
+      )
+
+      val dummyOutputBox = KioskBox(
+        changeAddress,
+        dummyNanoErgs,
+        registers = Array(),
+        tokens = Array((lpToken, sharesUnlocked.toLong))
+      )
+
+      // all ok, mint should work
+      an[Exception] shouldBe thrownBy {
+        TxUtil.createTx(Array(lpBox, lpMintBox, fundingBox), Array(),
+          Array(validLpOutBox, validLpMintOutBox, dummyOutputBox),
           fee = 1000000L,
           changeAddress,
           Array[String](),
@@ -124,7 +210,6 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
   }
 
   property("Mint Lp should fail if Lp address changed") {
-    val oracleRateXy = 10000L
     val lpBalanceIn = 100000000L
 
     val reservesXIn = 1000000000000L
@@ -161,26 +246,6 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
 
-      val dummyBox = // ToDo: see if this can be removed
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(dummyNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId5, fakeIndex)
-
-      val oracleBox =
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(minStorageRent)
-          .tokens(new ErgoToken(oracleNFT, 1))
-          .registers(KioskLong(oracleRateXy).getErgoValue)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId2, fakeIndex)
-
       val lpBox =
         ctx
           .newTxBuilder()
@@ -191,11 +256,28 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
 
+      val lpMintBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpMintNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpMintScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
       val validLpOutBox = KioskBox(
         changeAddress,  // <--------------- this value is changed
         reservesXOut,
         registers = Array(),
         tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, reservesYOut))
+      )
+
+      val validLpMintOutBox = KioskBox(
+        lpMintAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpMintNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -207,8 +289,8 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
 
       // all ok, mint should work
       the[Exception] thrownBy {
-        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
-          Array(validLpOutBox, dummyOutputBox),
+        TxUtil.createTx(Array(lpBox, lpMintBox, fundingBox), Array(),
+          Array(validLpOutBox, validLpMintOutBox, dummyOutputBox),
           fee = 1000000L,
           changeAddress,
           Array[String](),
@@ -220,7 +302,6 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
   }
 
   property("Mint Lp should not work if more LP taken") {
-    val oracleRateXy = 10000L
     val lpBalanceIn = 100000000L
 
     val reservesXIn = 1000000000000L
@@ -255,26 +336,6 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
 
-      val dummyBox = // ToDo: see if this can be removed
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(dummyNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId5, fakeIndex)
-
-      val oracleBox =
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(minStorageRent)
-          .tokens(new ErgoToken(oracleNFT, 1))
-          .registers(KioskLong(oracleRateXy).getErgoValue)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId2, fakeIndex)
-
       val lpBox =
         ctx
           .newTxBuilder()
@@ -285,11 +346,28 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
 
+      val lpMintBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpMintNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpMintScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
       val validLpOutBox = KioskBox(
         lpAddress,
         reservesXOut,
         registers = Array(),
         tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, reservesYOut))
+      )
+
+      val validLpMintOutBox = KioskBox(
+        lpMintAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpMintNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -300,8 +378,8 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
       )
 
       an[Exception] shouldBe thrownBy {
-        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
-          Array(validLpOutBox, dummyOutputBox),
+        TxUtil.createTx(Array(lpBox, lpMintBox, fundingBox), Array(),
+          Array(validLpOutBox, validLpMintOutBox, dummyOutputBox),
           fee = 1000000L,
           changeAddress,
           Array[String](),
@@ -312,15 +390,14 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
     }
   }
 
-  property("Can increase just Ergs (X tokens)") {
-    val oracleRateXy = 10000L
+  property("Can deposit less amount of Dexy (Y tokens)") {
     val lpBalanceIn = 100000000L
 
     val reservesXIn = 1000000000000L
     val reservesYIn = 100000000L
 
     val depositX = 500000L
-    val depositY = 0L // 0 dexy
+    val depositY = 1L // 1 dexy instead of 50
 
     val reservesXOut = reservesXIn + depositX
     val reservesYOut = reservesYIn + depositY
@@ -334,11 +411,11 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
     val sharesUnlockedY = BigInt(deltaReservesY) * supplyLpIn / reservesYIn
     val sharesUnlocked = sharesUnlockedX.min(sharesUnlockedY)
 
-    assert(sharesUnlocked == 0)
+    assert(sharesUnlocked == 999) // much less than 49950
 
     val lpBalanceOut = lpBalanceIn - sharesUnlocked.toLong
 
-    assert(lpBalanceOut == lpBalanceIn)
+    assert(lpBalanceOut == 99999001)
 
     assert(reservesXOut > reservesXIn)
 
@@ -349,29 +426,10 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .newTxBuilder()
           .outBoxBuilder
           .value(fakeNanoErgs)
+          .tokens(new ErgoToken(dexyUSD, depositY))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
-
-      val dummyBox = // ToDo: see if this can be removed
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(dummyNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId5, fakeIndex)
-
-      val oracleBox =
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(minStorageRent)
-          .tokens(new ErgoToken(oracleNFT, 1))
-          .registers(KioskLong(oracleRateXy).getErgoValue)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId2, fakeIndex)
 
       val lpBox =
         ctx
@@ -383,11 +441,28 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
 
+      val lpMintBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpMintNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpMintScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
       val validLpOutBox = KioskBox(
         lpAddress,
         reservesXOut,
         registers = Array(),
         tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, reservesYOut))
+      )
+
+      val validLpMintOutBox = KioskBox(
+        lpMintAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpMintNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -398,8 +473,8 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
       )
 
       noException shouldBe thrownBy {
-        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
-          Array(validLpOutBox, dummyOutputBox),
+        TxUtil.createTx(Array(lpBox, lpMintBox, fundingBox), Array(),
+          Array(validLpOutBox, validLpMintOutBox, dummyOutputBox),
           fee = 1000000L,
           changeAddress,
           Array[String](),
@@ -410,14 +485,104 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
     }
   }
 
-  property("Can increase just Dexy (Y tokens)") {
-    val oracleRateXy = 10000L
+  property("Taking more LP should fail (when depositing less Dexy)") {
     val lpBalanceIn = 100000000L
 
     val reservesXIn = 1000000000000L
     val reservesYIn = 100000000L
 
-    val depositX = 0L
+    val depositX = 500000L
+    val depositY = 1L // 1 dexy instead of 50
+
+    val reservesXOut = reservesXIn + depositX
+    val reservesYOut = reservesYIn + depositY
+
+    val deltaReservesX = depositX
+    val deltaReservesY = depositY
+
+    val supplyLpIn = initialLp - lpBalanceIn
+
+    val sharesUnlockedX = BigInt(deltaReservesX) * supplyLpIn / reservesXIn
+    val sharesUnlockedY = BigInt(deltaReservesY) * supplyLpIn / reservesYIn
+    val sharesUnlocked = sharesUnlockedX.min(sharesUnlockedY) + 1 // one extra LP taken
+
+    val lpBalanceOut = lpBalanceIn - sharesUnlocked.toLong
+
+    assert(reservesXOut > reservesXIn)
+
+    ergoClient.execute { implicit ctx: BlockchainContext =>
+
+      val fundingBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(fakeNanoErgs)
+          .tokens(new ErgoToken(dexyUSD, depositY))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .build()
+          .convertToInputWith(fakeTxId1, fakeIndex)
+
+      val lpBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(reservesXIn)
+          .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalanceIn), new ErgoToken(dexyUSD, reservesYIn))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
+      val lpMintBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpMintNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpMintScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
+      val validLpOutBox = KioskBox(
+        lpAddress,
+        reservesXOut,
+        registers = Array(),
+        tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, reservesYOut))
+      )
+
+      val validLpMintOutBox = KioskBox(
+        lpMintAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpMintNFT, 1))
+      )
+
+      val dummyOutputBox = KioskBox(
+        changeAddress,
+        dummyNanoErgs,
+        registers = Array(),
+        tokens = Array((lpToken, sharesUnlocked.toLong))
+      )
+
+      an[Exception] shouldBe thrownBy {
+        TxUtil.createTx(Array(lpBox, lpMintBox, fundingBox), Array(),
+          Array(validLpOutBox, validLpMintOutBox, dummyOutputBox),
+          fee = 1000000L,
+          changeAddress,
+          Array[String](),
+          Array[DhtData](),
+          false
+        )
+      }
+    }
+  }
+
+  property("Can deposit less amount of Ergs (X tokens)") {
+    val lpBalanceIn = 100000000L
+
+    val reservesXIn = 1000000000000L
+    val reservesYIn = 100000000L
+
+    val depositX = 10000L
     val depositY = 50L
 
     val reservesXOut = reservesXIn + depositX
@@ -432,13 +597,11 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
     val sharesUnlockedY = BigInt(deltaReservesY) * supplyLpIn / reservesYIn
     val sharesUnlocked = sharesUnlockedX.min(sharesUnlockedY)
 
-    assert(sharesUnlocked == 0)
+    assert(sharesUnlocked == 999)
 
     val lpBalanceOut = lpBalanceIn - sharesUnlocked.toLong
 
-    assert(lpBalanceOut == lpBalanceIn)
-
-    assert(reservesXOut == reservesXIn)
+    assert(lpBalanceOut == 99999001)
 
     assert(reservesYOut > reservesYIn)
 
@@ -454,26 +617,6 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
 
-      val dummyBox = // ToDo: see if this can be removed
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(dummyNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId5, fakeIndex)
-
-      val oracleBox =
-        ctx
-          .newTxBuilder()
-          .outBoxBuilder
-          .value(minStorageRent)
-          .tokens(new ErgoToken(oracleNFT, 1))
-          .registers(KioskLong(oracleRateXy).getErgoValue)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
-          .build()
-          .convertToInputWith(fakeTxId2, fakeIndex)
-
       val lpBox =
         ctx
           .newTxBuilder()
@@ -484,11 +627,28 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
 
+      val lpMintBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpMintNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpMintScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
       val validLpOutBox = KioskBox(
         lpAddress,
         reservesXOut,
         registers = Array(),
         tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, reservesYOut))
+      )
+
+      val validLpMintOutBox = KioskBox(
+        lpMintAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpMintNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -499,8 +659,8 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
       )
 
       noException shouldBe thrownBy {
-        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
-          Array(validLpOutBox, dummyOutputBox),
+        TxUtil.createTx(Array(lpBox, lpMintBox, fundingBox), Array(),
+          Array(validLpOutBox, validLpMintOutBox, dummyOutputBox),
           fee = 1000000L,
           changeAddress,
           Array[String](),
@@ -511,15 +671,14 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
     }
   }
 
-  property("Can increase just LP tokens") {
-    val oracleRateXy = 10000L
+  property("Taking more LP should fail (when depositing less Ergs)") {
     val lpBalanceIn = 100000000L
 
     val reservesXIn = 1000000000000L
     val reservesYIn = 100000000L
 
-    val depositX = 0L
-    val depositY = 0L
+    val depositX = 10000L
+    val depositY = 50L
 
     val reservesXOut = reservesXIn + depositX
     val reservesYOut = reservesYIn + depositY
@@ -531,12 +690,11 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
 
     val sharesUnlockedX = BigInt(deltaReservesX) * supplyLpIn / reservesXIn
     val sharesUnlockedY = BigInt(deltaReservesY) * supplyLpIn / reservesYIn
-    val sharesUnlocked = sharesUnlockedX.min(sharesUnlockedY) - 1
+    val sharesUnlocked = sharesUnlockedX.min(sharesUnlockedY) + 1 // one extra LP unlocked
 
     val lpBalanceOut = lpBalanceIn - sharesUnlocked.toLong
-    assert(lpBalanceOut > lpBalanceIn)
-    assert(reservesXOut == reservesXIn)
-    assert(reservesYOut == reservesYIn)
+
+    assert(reservesYOut > reservesYIn)
 
     ergoClient.execute { implicit ctx: BlockchainContext =>
 
@@ -550,25 +708,94 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .build()
           .convertToInputWith(fakeTxId1, fakeIndex)
 
-      val dummyBox = // ToDo: see if this can be removed
+      val lpBox =
         ctx
           .newTxBuilder()
           .outBoxBuilder
-          .value(dummyNanoErgs)
-          .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
+          .value(reservesXIn)
+          .tokens(new ErgoToken(lpNFT, 1), new ErgoToken(lpToken, lpBalanceIn), new ErgoToken(dexyUSD, reservesYIn))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpScript))
           .build()
-          .convertToInputWith(fakeTxId5, fakeIndex)
+          .convertToInputWith(fakeTxId3, fakeIndex)
 
-      val oracleBox =
+      val lpMintBox =
         ctx
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
-          .tokens(new ErgoToken(oracleNFT, 1))
-          .registers(KioskLong(oracleRateXy).getErgoValue)
+          .tokens(new ErgoToken(lpMintNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpMintScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
+      val validLpOutBox = KioskBox(
+        lpAddress,
+        reservesXOut,
+        registers = Array(),
+        tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, reservesYOut))
+      )
+
+      val validLpMintOutBox = KioskBox(
+        lpMintAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpMintNFT, 1))
+      )
+
+      val dummyOutputBox = KioskBox(
+        changeAddress,
+        dummyNanoErgs,
+        registers = Array(),
+        tokens = Array((lpToken, sharesUnlocked.toLong))
+      )
+
+      an[Exception] shouldBe thrownBy {
+        TxUtil.createTx(Array(lpBox, lpMintBox, fundingBox), Array(),
+          Array(validLpOutBox, validLpMintOutBox, dummyOutputBox),
+          fee = 1000000L,
+          changeAddress,
+          Array[String](),
+          Array[DhtData](),
+          false
+        )
+      }
+    }
+  }
+
+  property("Can take less LP tokens") {
+    val lpBalanceIn = 100000000L
+
+    val reservesXIn = 1000000000000L
+    val reservesYIn = 100000000L
+
+    val depositX = 500000L
+    val depositY = 50L
+
+    val reservesXOut = reservesXIn + depositX
+    val reservesYOut = reservesYIn + depositY
+
+    val deltaReservesX = depositX
+    val deltaReservesY = depositY
+
+    val supplyLpIn = initialLp - lpBalanceIn
+
+    val sharesUnlockedX = BigInt(deltaReservesX) * supplyLpIn / reservesXIn
+    val sharesUnlockedY = BigInt(deltaReservesY) * supplyLpIn / reservesYIn
+    val sharesUnlocked = sharesUnlockedX.min(sharesUnlockedY) - 1 // one less LP taken
+
+    val lpBalanceOut = lpBalanceIn - sharesUnlocked.toLong
+
+    ergoClient.execute { implicit ctx: BlockchainContext =>
+
+      val fundingBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(fakeNanoErgs)
+          .tokens(new ErgoToken(dexyUSD, depositY))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), fakeScript))
           .build()
-          .convertToInputWith(fakeTxId2, fakeIndex)
+          .convertToInputWith(fakeTxId1, fakeIndex)
 
       val lpBox =
         ctx
@@ -580,11 +807,28 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
 
+      val lpMintBox =
+        ctx
+          .newTxBuilder()
+          .outBoxBuilder
+          .value(minStorageRent)
+          .tokens(new ErgoToken(lpMintNFT, 1))
+          .contract(ctx.compileContract(ConstantsBuilder.empty(), lpMintScript))
+          .build()
+          .convertToInputWith(fakeTxId3, fakeIndex)
+
       val validLpOutBox = KioskBox(
         lpAddress,
         reservesXOut,
         registers = Array(),
         tokens = Array((lpNFT, 1), (lpToken, lpBalanceOut), (dexyUSD, reservesYOut))
+      )
+
+      val validLpMintOutBox = KioskBox(
+        lpMintAddress,
+        minStorageRent,
+        registers = Array(),
+        tokens = Array((lpMintNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -595,8 +839,8 @@ class LpMintSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
       )
 
       noException shouldBe thrownBy {
-        TxUtil.createTx(Array(lpBox, dummyBox, fundingBox), Array(oracleBox),
-          Array(validLpOutBox, dummyOutputBox),
+        TxUtil.createTx(Array(lpBox, lpMintBox, fundingBox), Array(),
+          Array(validLpOutBox, validLpMintOutBox, dummyOutputBox),
           fee = 1000000L,
           changeAddress,
           Array[String](),

@@ -28,7 +28,6 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
   val changeAddress = "9gQqZyxyjAptMbfW1Gydm3qaap11zd6X9DrABwgEE9eRdRvd27p"
 
   property("Swap (sell Ergs) should work") {
-    val oracleRateXy = 10000L
     val lpBalance = 100000000L
     val reservesXIn = 1000000000000L
     val reservesYIn = 100000000L
@@ -72,7 +71,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
-          .tokens(new ErgoToken(swapNFT, 1))
+          .tokens(new ErgoToken(lpSwapNFT, 1))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), lpSwapScript))
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
@@ -88,7 +87,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
         lpSwapAddress,
         minStorageRent,
         registers = Array(),
-        tokens = Array((swapNFT, 1))
+        tokens = Array((lpSwapNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -113,7 +112,6 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
   }
 
   property("Swap (sell Ergs) should fail if Lp address changed") {
-    val oracleRateXy = 10000L
     val lpBalance = 100000000L
     val reservesXIn = 1000000000000L
     val reservesYIn = 100000000L
@@ -157,7 +155,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
-          .tokens(new ErgoToken(swapNFT, 1))
+          .tokens(new ErgoToken(lpSwapNFT, 1))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), lpSwapScript))
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
@@ -173,7 +171,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
         lpSwapAddress,
         minStorageRent,
         registers = Array(),
-        tokens = Array((swapNFT, 1))
+        tokens = Array((lpSwapNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -197,7 +195,6 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
   }
 
   property("Swap (sell Ergs) should not work if more Dexy taken") {
-    val oracleRateXy = 10000L
     val lpBalance = 100000000L
     val reservesXIn = 1000000000000L
     val reservesYIn = 100000000L
@@ -241,7 +238,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
-          .tokens(new ErgoToken(swapNFT, 1))
+          .tokens(new ErgoToken(lpSwapNFT, 1))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), lpSwapScript))
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
@@ -257,7 +254,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
         lpSwapAddress,
         minStorageRent,
         registers = Array(),
-        tokens = Array((swapNFT, 1))
+        tokens = Array((lpSwapNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -281,7 +278,6 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
   }
 
   property("Swap (sell Dexy) should work") {
-    val oracleRateXy = 10000L
     val lpBalance = 100000000L
     val reservesXIn = 1000000000000L
     val reservesYIn = 100000000L
@@ -326,7 +322,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
-          .tokens(new ErgoToken(swapNFT, 1))
+          .tokens(new ErgoToken(lpSwapNFT, 1))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), lpSwapScript))
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
@@ -342,7 +338,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
         lpSwapAddress,
         minStorageRent,
         registers = Array(),
-        tokens = Array((swapNFT, 1))
+        tokens = Array((lpSwapNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -367,7 +363,6 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
   }
 
   property("Swap (sell Dexy) should not work if more Ergs taken") {
-    val oracleRateXy = 10000L
     val lpBalance = 100000000L
     val reservesXIn = 1000000000000L
     val reservesYIn = 100000000L
@@ -412,7 +407,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
-          .tokens(new ErgoToken(swapNFT, 1))
+          .tokens(new ErgoToken(lpSwapNFT, 1))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), lpSwapScript))
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
@@ -428,7 +423,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
         lpSwapAddress,
         minStorageRent,
         registers = Array(),
-        tokens = Array((swapNFT, 1))
+        tokens = Array((lpSwapNFT, 1))
       )
 
       val dummyOutputBox = KioskBox(
@@ -452,7 +447,6 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
   }
 
   property("No change should work") {
-    val oracleRateXy = 10000L
     val lpBalance = 100000000L
     val reservesXIn = 1000000000000L
     val reservesYIn = 100000000L
@@ -486,7 +480,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
           .newTxBuilder()
           .outBoxBuilder
           .value(minStorageRent)
-          .tokens(new ErgoToken(swapNFT, 1))
+          .tokens(new ErgoToken(lpSwapNFT, 1))
           .contract(ctx.compileContract(ConstantsBuilder.empty(), lpSwapScript))
           .build()
           .convertToInputWith(fakeTxId3, fakeIndex)
@@ -502,7 +496,7 @@ class LpSwapSpec  extends PropSpec with Matchers with ScalaCheckDrivenPropertyCh
         lpSwapAddress,
         minStorageRent,
         registers = Array(),
-        tokens = Array((swapNFT, 1))
+        tokens = Array((lpSwapNFT, 1))
       )
 
       // all ok, swap should work
