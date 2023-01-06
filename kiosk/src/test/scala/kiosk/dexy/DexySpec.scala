@@ -504,6 +504,8 @@ object DexySpec {
        |    val interventionBoxIndex = 2   // ToDo: fix if possible, otherwise each tx needs at least 3 inputs (add dummy inputs for now)
        |    val extractBoxIndex = 1
        |    val lpActionBoxIndex = 1 // swap/redeem/mint
+       |    // depending on the action, the inputs at index 1 will either be a "LP action box" or an "Extract box"
+       |
        |
        |    // outputs
        |    val selfOutIndex = 0
@@ -516,15 +518,13 @@ object DexySpec {
        |
        |    val interventionBox = INPUTS(interventionBoxIndex)
        |    val extractBox = INPUTS(extractBoxIndex)
-       |    val swapBox = INPUTS(lpActionBoxIndex)
-       |    val mintBox = INPUTS(lpActionBoxIndex)
-       |    val redeemBox = INPUTS(lpActionBoxIndex)
+       |    val lpActionBox = INPUTS(lpActionBoxIndex)
        |
        |    val successor = OUTPUTS(selfOutIndex) // copy of this box after exchange
        |
-       |    val validSwap      = swapBox.tokens(0)._1 == swapNFT
-       |    val validMint      = mintBox.tokens(0)._1 == mintNFT
-       |    val validRedeem    = redeemBox.tokens(0)._1 == redeemNFT
+       |    val validSwap      = lpActionBox.tokens(0)._1 == swapNFT
+       |    val validMint      = lpActionBox.tokens(0)._1 == mintNFT
+       |    val validRedeem    = lpActionBox.tokens(0)._1 == redeemNFT
        |
        |    val validIntervention = interventionBox.tokens(0)._1 == interventionNFT
        |    val validExtraction   = extractBox.tokens(0)._1 == extractionNFT
