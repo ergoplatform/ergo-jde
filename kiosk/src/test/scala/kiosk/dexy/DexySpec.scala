@@ -26,6 +26,9 @@ object DexySpec {
   val tracking95NFT = "261A3A5250655368566D597133743677397A24432646294A404D635166546A55" // TODO replace with actual
   val tracking101NFT = "261A3A5250655368566D597133743677397A24432646294A404D635166546A58" // TODO replace with actual
 
+  // test NFT
+  val testNFT = "361A3A5250655368566D597133743677397A24432646294A404D635166546A58" // TODO replace with actual
+
   // High level idea:
   // There are 3 main boxes in the protocol, and the others are auxiliary boxes to manage the main boxes
   // Main boxes:
@@ -501,7 +504,7 @@ object DexySpec {
        |
        |
        |    // inputs
-       |    val interventionBoxIndex = 2   // ToDo: fix if possible, otherwise each tx needs at least 3 inputs (add dummy inputs for now)
+       |    val interventionBoxIndex = 2
        |    val extractBoxIndex = 1
        |    val lpActionBoxIndex = 1 // swap/redeem/mint
        |    // depending on the action, the inputs at index 1 will either be a "LP action box" or an "Extract box"
@@ -516,7 +519,6 @@ object DexySpec {
        |    val mintNFT = fromBase64("${Base64.encode(lpMintNFT.decodeHex)}")
        |    val redeemNFT = fromBase64("${Base64.encode(lpRedeemNFT.decodeHex)}")
        |
-       |    val interventionBox = INPUTS(interventionBoxIndex)
        |    val extractBox = INPUTS(extractBoxIndex)
        |    val lpActionBox = INPUTS(lpActionBoxIndex)
        |
@@ -526,7 +528,7 @@ object DexySpec {
        |    val validMint      = lpActionBox.tokens(0)._1 == mintNFT
        |    val validRedeem    = lpActionBox.tokens(0)._1 == redeemNFT
        |
-       |    val validIntervention = interventionBox.tokens(0)._1 == interventionNFT
+       |    val validIntervention = INPUTS.size > interventionBoxIndex && INPUTS(interventionBoxIndex).tokens(0)._1 == interventionNFT
        |    val validExtraction   = extractBox.tokens(0)._1 == extractionNFT
        |    
        |    val lpNftIn      = SELF.tokens(0)
@@ -559,6 +561,7 @@ object DexySpec {
        |
        |    val dexyAction = (validIntervention || validExtraction) &&
        |                      deltaSupplyLp == 0 // ensure Lp tokens are not extracted during dexyAction
+       |
        |    sigmaProp(
        |        preservedScript           &&
        |        preservedLpNft            &&
