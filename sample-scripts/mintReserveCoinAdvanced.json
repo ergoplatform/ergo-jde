@@ -84,6 +84,14 @@
       "address": {
         "value": "poolAddresses"
       },
+      "tokens": [
+        {
+          "index": 0,
+          "id": {
+            "value": "oraclePoolNFT"
+          }
+        }
+      ],
       "registers": [
         {
           "num": "R4",
