@@ -33,12 +33,11 @@ object Mix extends App {
         |  val b0 = out0.R5[GroupElement].get  // register b of first output
         |  val b1 = out1.R5[GroupElement].get  // register b of second output
         |  
-        |  val m0 = out0.R6[GroupElement].get  // access group element to ensure it exists (not used)
-        |  val m1 = out1.R6[GroupElement].get  // access group element to ensure it exists (not used)
-        |  val n0 = out0.R7[GroupElement].get  // access group element to ensure it exists (not used)
-        |  val n1 = out1.R7[GroupElement].get  // access group element to ensure it exists (not used)
-        |  // ToDo: Check whether JITC will execute the above 4 lines, if they are never accessed.  
-        |  
+        |  val m0 = out0.R6[GroupElement].get
+        |  val m1 = out1.R6[GroupElement].get
+        |  val n0 = out0.R7[GroupElement].get
+        |  val n1 = out1.R7[GroupElement].get
+        |
         |  val h0 = out0.creationInfo._1  // height at which first output is created 
         |  val h1 = out1.creationInfo._1  // height at which second output is created  
         |  
@@ -50,8 +49,11 @@ object Mix extends App {
         |                  a0 != b0                                       && // rule out point at infinity
         |                  a1 != b1                                       && // rule out point at infinity        
         |                  h0 <= HEIGHT                                   && // ensure that h0 is not too high
-        |                  h1 <= HEIGHT                                      // ensure that h1 is not too high
-        |      
+        |                  h1 <= HEIGHT                                   && // ensure that h1 is not too high
+        |                  m0 != m1                                       && // access group element to ensure it exists
+        |                  n0 != n1                                          // access group element to ensure it exists
+        |  // the above two lines also ensure that the mixer re-randomizes the public key each time
+        |
         |  // at least one of the outputs has the right relationship between R4, R5
         |  val validAB = proveDHTuple(a, b, a0, b0) || proveDHTuple(a, b, a1, b1)
         |  

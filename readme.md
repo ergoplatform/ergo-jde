@@ -1,7 +1,6 @@
 # JSON dApp Environment (JDE)
 
 JDE can be thought of as a "Programmable" transaction builder for the Ergo blockchain, with JSON being the programming language.
-JDE is primarily intended for developers.
 
 ### Using in your own project
 
@@ -11,16 +10,65 @@ Add the following to build.sbt
   libraryDependencies += "io.github.ergoplatform" %% "ergojde" % "1.0"
 ```
 
-
 ### What can it do?
 
 Recall that in an Ergo dApp, building a transaction usually involves a combination of the following tasks:
 1. Get some unspent boxes from the blockchain with some specific properties (such as with a given address and/or containing a given NFT).
 2. Extract data from those boxes (tokens, registers) and compute some values using the data.
 3. Define output boxes from the above data and create a transaction request to get an unsigned transaction.
-4. Use a wallet software (such as the Ergo node) to sign the transaction.
+4. Optionally Use a wallet software (such as the Ergo node) to sign the transaction.
  
-JDE is designed for Steps 1-3. There is also a connector for Ergo node to perform Step 4.
+JDE is designed for Steps 1-4. Step 4 is done via a connector to an Ergo node.
+
+### Example Usage
+
+JDE is used in [Ergo UrlWallet](https://github.com/scalahub/erg-urlwallet) to fetch Erg/USD rate from [Oracle pool 1.0](https://github.com/ergoplatform/eips/blob/eip16/eip-0016.md) using the [following script](https://github.com/scalahub/erg-urlwallet/blob/master/src/main/scala/org/ErgUrlWallet/ErgReader.scala#L103-L145):
+
+```json
+{
+  "constants": [
+    {
+      "name": "oraclePoolNFT",
+      "type": "CollByte",
+      "value": "011d3364de07e5a26f0c4eef0852cddb387039a921b7154ef3cab22c6eda887f"
+    },
+    {
+      "name": "poolAddresses",
+      "type": "Address",
+      "values": [
+        "NTkuk55NdwCXkF1e2nCABxq7bHjtinX3wH13zYPZ6qYT71dCoZBe1gZkh9FAr7GeHo2EpFoibzpNQmoi89atUjKRrhZEYrTapdtXrWU4kq319oY7BEWmtmRU9cMohX69XMuxJjJP5hRM8WQLfFnffbjshhEP3ck9CKVEkFRw1JDYkqVke2JVqoMED5yxLVkScbBUiJJLWq9BSbE1JJmmreNVskmWNxWE6V7ksKPxFMoqh1SVePh3UWAaBgGQRZ7TWf4dTBF5KMVHmRXzmQqEu2Fz2yeSLy23sM3pfqa78VuvoFHnTFXYFFxn3DNttxwq3EU3Zv25SmgrWjLKiZjFcEcqGgH6DJ9FZ1DfucVtTXwyDJutY3ksUBaEStRxoUQyRu4EhDobixL3PUWRcxaRJ8JKA9b64ALErGepRHkAoVmS8DaE6VbroskyMuhkTo7LbrzhTyJbqKurEzoEfhYxus7bMpLTePgKcktgRRyB7MjVxjSpxWzZedvzbjzZaHLZLkWZESk1WtdM25My33wtVLNXiTvficEUbjA23sNd24pv1YQ72nY1aqUHa2",
+        "EfS5abyDe4vKFrJ48K5HnwTqa1ksn238bWFPe84bzVvCGvK1h2B7sgWLETtQuWwzVdBaoRZ1HcyzddrxLcsoM5YEy4UnqcLqMU1MDca1kLw9xbazAM6Awo9y6UVWTkQcS97mYkhkmx2Tewg3JntMgzfLWz5mACiEJEv7potayvk6awmLWS36sJMfXWgnEfNiqTyXNiPzt466cgot3GLcEsYXxKzLXyJ9EfvXpjzC2abTMzVSf1e17BHre4zZvDoAeTqr4igV3ubv2PtJjntvF2ibrDLmwwAyANEhw1yt8C8fCidkf3MAoPE6T53hX3Eb2mp3Xofmtrn4qVgmhNonnV8ekWZWvBTxYiNP8Vu5nc6RMDBv7P1c5rRc3tnDMRh2dUcDD7USyoB9YcvioMfAZGMNfLjWqgYu9Ygw2FokGBPThyWrKQ5nkLJvief1eQJg4wZXKdXWAR7VxwNftdZjPCHcmwn6ByRHZo9kb4Emv3rjfZE"
+      ]
+    }
+  ],
+  "auxInputs": [
+    {
+      "address": {
+        "value": "poolAddresses"
+      },
+      "tokens": [
+        {
+          "index": 0,
+          "id": {
+            "value": "oraclePoolNFT"
+          }
+        }
+      ],
+      "registers": [
+        {
+          "num": "R4",
+          "name": "rateUsd",
+          "type": "Long"
+        }
+      ]
+    }
+  ],
+  "returns": [
+    "rateUsd"
+  ]
+}
+```
+
 
 ### What can it be compared to? 
 
